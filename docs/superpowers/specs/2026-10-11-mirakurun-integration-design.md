@@ -66,7 +66,6 @@ custom_components/mirakurun/
 ├── update.py
 ├── diagnostics.py
 ├── const.py
-├── strings.json
 ├── icons.json
 ├── quality_scale.yaml
 └── translations/{en,ja}.json
@@ -95,7 +94,7 @@ README.md
 - `StatusCoordinator` と `ProgramCoordinator` の間隔はオプションで変えられる。変更時はエントリを再読み込みする。
 - HA 本体は取得間隔を設定項目にしない方針をとる（外部サービスへの過剰なアクセスを防ぐため）。Mirakurun は LAN 内のサーバーであり、この懸念は小さいため、本インテグレーションでは設定可能にする。この逸脱は README に明記する。
 
-- サービス一覧（`/services`）はセットアップ時と `ProgramCoordinator` の更新時に取得する。
+- サービス一覧（`/services`）はセットアップ時とオプション画面を開いたときに取得する。放送の判定を固定する方針（3.5 節）に揃え、番組の更新ごとには取得しない。
 - 「現在の番組」は `ProgramCoordinator` が保持する番組データから算出する。API は呼ばない。番組の切り替わりに合わせて状態を更新するため、各エンティティは次の切り替わり時刻に `async_track_point_in_utc_time` で再描画を予約する。
 - `/api/events/stream` によるプッシュ更新は段階 1 では使わない。チューナー状況の即時性が足りないと分かった時点で、`resource=tuner` に絞って追加する。
 
@@ -131,7 +130,7 @@ README.md
 
 | エンティティ | 種類 | 内容 |
 |---|---|---|
-| 状態 | sensor（enum） | `fault` / `in_use` / `free` / `unavailable` |
+| 状態 | sensor（enum） | `fault` / `disabled` / `in_use` / `free`。`isAvailable` が偽のチューナーは `disabled`（HA の予約状態 `unavailable` との衝突を避ける） |
 | 視聴中のチャンネル | sensor | `users` のうち最も優先度の高い利用者の `streamSetting.channel.name`。未使用なら `None` |
 | 利用者 | sensor | 最も優先度の高い利用者の `id`。属性に全利用者の `id` と `priority` |
 | 故障 | binary_sensor（problem） | `isFault` |
@@ -155,7 +154,7 @@ README.md
 **共通**
 
 - `unique_id` は `{config_entry_id}_{種別}_{識別子}_{キー}` とする。URL を含めない（再設定で URL が変わっても維持するため）。
-- エンティティ名とアイコンは `strings.json` と `icons.json` で翻訳する（`has_entity_name = True`）。英語と日本語を用意する。
+- エンティティ名とアイコンは `translations/{en,ja}.json` と `icons.json` で翻訳する（カスタムインテグレーションでは HA が `strings.json` を読まないため）（`has_entity_name = True`）。英語と日本語を用意する。
 
 ### 3.5 マルチチャンネル放送
 
@@ -212,13 +211,13 @@ BS-TBS（162）のように、別番組の多いサブチャンネルは基準�
 ### 3.6 番組データの扱い
 
 - `startAt` と `duration` はミリ秒。UTC の `datetime` に変換する。
-- `duration` が `1` 以下の番組は終了時刻が未定とみなす。この場合、終了時刻は次の番組の開始時刻とする。次の番組もなければ開始から 1 時間とする。Mirakurun は未定の継続時間を `1` で表すと理解しているが、実機の NHK 総合 497 件には該当がなく、未検証である。実装時に Mirakurun のソースで確かめる。
+- `duration` が `1` 以下の番組は終了時刻が未定とみなす。この場合、終了時刻は次の番組の開始時刻とする。次の番組もなければ開始から 1 時間とする。Mirakurun は ARIB の未定値（`0xFFFFFF`）を `duration: 1` に変換する（`src/Mirakurun/EPG.ts` の `UNKNOWN_DURATION`）。実機の NHK 総合 497 件には該当がなかった。
 - ジャンルは ARIB の大分類（`lv1`）を日本語・英語の名前に変換する。中分類は属性に数値のまま残す。
 - カレンダーの `async_get_events` は保持データの範囲内で返す。範囲外を要求されても API は呼ばない。
 
 ### 3.7 エラー処理
 
-- 初回の取得に失敗したら `ConfigEntryNotReady` を送出し、HA の再試行に任せる。
+- 初回の取得に失敗したら `ConfigEntryNotReady` を送出し、HA の再試行に任せる。ただし `VersionCoordinator` の失敗はセットアップを止めない。`latest` は Mirakurun が npm に問い合わせて得る値で、届かない環境があるため。この場合は更新エンティティだけが利用不可になる。
 - 2 回目以降の失敗は `UpdateFailed` にする。該当コーディネーターのエンティティは利用不可になる。
 - 利用不可になったときと復帰したときに 1 回ずつログを出す（log-when-unavailable）。
 - `ProgramCoordinator` は一部のサービスだけ失敗した場合、失敗したサービスの前回データを保持して他を更新する。全サービスが失敗したら `UpdateFailed` にする。
@@ -265,11 +264,12 @@ Integration Quality Scale のうち、次を満たす。
 - `pytest-homeassistant-custom-component` を使う。
 - API クライアントは、実機から取った JSON をフィクスチャにしてテストする。フィクスチャは件数を絞り、チューナーのコマンド行やプロセス情報など環境固有の値は置き換える。
 - 設定フローはすべての分岐を網羅する（Quality Scale の config-flow-test-coverage）。
-- エンティティの状態は syrupy のスナップショットで検証する。
+- エンティティの状態は明示的な assert で検証する。期待値をテストコード上で読めるようにするため、スナップショットは使わない。
 - 番組の切り替わり、終了時刻未定の番組、一部サービスの取得失敗を個別にテストする。
 - 放送の判定（3.5 節）は、実機で観察した型ごとにテストする。常に共有（日テレ２）、まれに別番組（NHK 総合２）、常に独立（MX２）、局の同居（CS）、判定の失敗。
 - 別番組の検出と、カレンダーへのサブチャンネル番組の追加をテストする。
-- CI（GitHub Actions）で hassfest、HACS の検証、ruff、mypy、pytest を回す。
+- 開発ツールは mise（Python と uv のバージョン固定、タスク）と uv（依存と仮想環境）で管理する。
+- CI（GitHub Actions）で hassfest、HACS の検証、ruff、mypy、pytest を回す。CI も mise で同じツールを入れる。
 
 ## 8. 未決事項
 
