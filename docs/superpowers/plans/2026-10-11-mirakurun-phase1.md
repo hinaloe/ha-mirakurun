@@ -146,6 +146,9 @@ target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+# Line length is left to the formatter. Japanese broadcaster names use
+# full-width characters that the ambiguous-unicode rules would flag.
+ignore = ["E501", "RUF001", "RUF002", "RUF003"]
 
 [tool.ruff.lint.isort]
 force-sort-within-sections = true
@@ -722,6 +725,9 @@ async def test_unexpected_payload(
 
 Run: `uv run pytest tests/test_api.py -v`
 Expected: FAIL（`ModuleNotFoundError: No module named 'custom_components.mirakurun.api'`）
+
+Run: `uv run ruff check tests`
+Expected: import 先が未作成であること以外の指摘がない。全角文字（`ＮＨＫ` など）で RUF001〜003 が出る場合は、`pyproject.toml` の `ignore` が効いていないので見直す。
 
 - [ ] **Step 7: models.py を実装する**
 
@@ -1670,6 +1676,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   - 翻訳ファイルは以降のタスクで使う全キーをこのタスクで用意する
 
 - [ ] **Step 1: 翻訳ファイルを作る**
+
+テストハーネスは翻訳キーの不整合を検出しない。カスタムインテグレーションでは `translations/en.json` を hassfest（Task 9 の CI）が検証するため、キーの誤りは CI の hassfest ジョブで見つかる。
 
 `custom_components/mirakurun/translations/en.json`:
 
@@ -4768,6 +4776,8 @@ jobs:
       - run: mise run lint
       - run: mise run test -- --cov-fail-under=95
 ```
+
+CI の hassfest ジョブが `custom_components/mirakurun/quality_scale.yaml` を HA 本体向けのルールとして検証してエラーにした場合は、内容を書き換えずにファイルを `docs/quality_scale.yaml` へ移す（このファイルは本体向けの慣習で、カスタムインテグレーションでは記録用にすぎないため）。
 
 - [ ] **Step 5: 全体を検証する**
 
