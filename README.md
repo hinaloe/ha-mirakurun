@@ -114,4 +114,6 @@ Go to **Settings → Devices & services → Mirakurun**, open the menu and choos
 
 ## License
 
-Apache License 2.0. See [LICENSE](LICENSE).
+Copyright 2026 hinaloe
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full text.
