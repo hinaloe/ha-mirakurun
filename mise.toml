@@ -1,0 +1,15 @@
+[tools]
+python = "3.14"
+uv = "latest"
+
+[tasks.lint]
+description = "Run linters and the type checker"
+run = [
+  "uv run ruff check .",
+  "uv run ruff format --check .",
+  "uv run mypy",
+]
+
+[tasks.test]
+description = "Run tests with coverage"
+run = "uv run pytest --cov=custom_components.mirakurun --cov-report=term-missing"

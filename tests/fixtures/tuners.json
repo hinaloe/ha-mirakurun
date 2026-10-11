@@ -1,0 +1,58 @@
+[
+  {
+    "index": 12,
+    "name": "PT3-S1",
+    "types": ["BS", "CS"],
+    "command": "recpt1 --device /dev/pt3video0 BS01_0 - -",
+    "pid": 100,
+    "users": [
+      {
+        "id": "Mirakurun:getEPG()",
+        "priority": -1,
+        "disableDecoder": true,
+        "streamSetting": {
+          "channel": {"name": "BS:BS01_0", "type": "BS", "channel": "BS01_0", "commandVars": {}},
+          "networkId": 4,
+          "parseEIT": true
+        },
+        "streamInfo": {}
+      },
+      {
+        "id": "EPGStation-recorder",
+        "priority": 2,
+        "streamSetting": {"channel": {"name": "ＢＳ朝日", "type": "BS", "channel": "BS01_0"}}
+      }
+    ],
+    "isAvailable": true,
+    "isRemote": false,
+    "isFree": false,
+    "isUsing": true,
+    "isFault": false
+  },
+  {
+    "index": 14,
+    "name": "PT3-T1",
+    "types": ["GR"],
+    "command": null,
+    "pid": null,
+    "users": [],
+    "isAvailable": true,
+    "isRemote": false,
+    "isFree": true,
+    "isUsing": false,
+    "isFault": false
+  },
+  {
+    "index": 15,
+    "name": "PT3-T2",
+    "types": ["GR"],
+    "command": null,
+    "pid": null,
+    "users": [],
+    "isAvailable": true,
+    "isRemote": false,
+    "isFree": false,
+    "isUsing": false,
+    "isFault": true
+  }
+]
