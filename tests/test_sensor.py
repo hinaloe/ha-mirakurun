@@ -1,0 +1,141 @@
+"""Tests for Mirakurun sensors."""
+
+from datetime import timedelta
+
+from freezegun.api import FrozenDateTimeFactory
+from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
+from pytest_homeassistant_custom_component.test_util.aiohttp import (
+    AiohttpClientMocker,
+)
+
+from .common import ENTRY_ID, entity_id, load_fixture, mock_mirakurun, setup_integration
+
+
+def _state(hass: HomeAssistant, unique_id: str) -> str:
+    state = hass.states.get(entity_id(hass, "sensor", unique_id))
+    assert state is not None
+    return state.state
+
+
+async def _refresh_status(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
+    freezer.tick(timedelta(seconds=31))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+
+async def test_server_sensors(
+    hass: HomeAssistant, mirakurun: AiohttpClientMocker, config_entry: MockConfigEntry
+) -> None:
+    await setup_integration(hass, config_entry)
+    assert _state(hass, f"{ENTRY_ID}_server_tuners_in_use") == "1"
+    assert _state(hass, f"{ENTRY_ID}_server_tuners_free") == "1"
+    assert _state(hass, f"{ENTRY_ID}_server_streams") == "2"
+    assert _state(hass, f"{ENTRY_ID}_server_tuner_respawns") == "1747"
+
+
+async def test_diagnostic_sensors_disabled_by_default(
+    hass: HomeAssistant,
+    mirakurun: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    await setup_integration(hass, config_entry)
+    for key in (
+        "stored_events",
+        "uncaught_exceptions",
+        "unhandled_rejections",
+        "buffer_overflows",
+        "decoder_respawns",
+    ):
+        entry = entity_registry.async_get(
+            entity_id(hass, "sensor", f"{ENTRY_ID}_server_{key}")
+        )
+        assert entry is not None
+        assert entry.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+
+
+async def test_tuner_sensors(
+    hass: HomeAssistant, mirakurun: AiohttpClientMocker, config_entry: MockConfigEntry
+) -> None:
+    await setup_integration(hass, config_entry)
+    assert _state(hass, f"{ENTRY_ID}_tuner_12_state") == "in_use"
+    assert _state(hass, f"{ENTRY_ID}_tuner_12_channel") == "ＢＳ朝日"
+    assert _state(hass, f"{ENTRY_ID}_tuner_12_user") == "EPGStation-recorder"
+    user = hass.states.get(entity_id(hass, "sensor", f"{ENTRY_ID}_tuner_12_user"))
+    assert user.attributes["users"] == [
+        {"id": "Mirakurun:getEPG()", "priority": -1},
+        {"id": "EPGStation-recorder", "priority": 2},
+    ]
+    assert _state(hass, f"{ENTRY_ID}_tuner_14_state") == "free"
+    assert _state(hass, f"{ENTRY_ID}_tuner_14_channel") == STATE_UNKNOWN
+    assert _state(hass, f"{ENTRY_ID}_tuner_15_state") == "fault"
+
+
+async def test_disabled_tuner_state(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+) -> None:
+    tuners = load_fixture("tuners.json")
+    tuners[1]["isAvailable"] = False
+    mock_mirakurun(aioclient_mock, tuners=tuners)
+    await setup_integration(hass, config_entry)
+    assert _state(hass, f"{ENTRY_ID}_tuner_14_state") == "disabled"
+
+
+async def test_new_tuner_added_dynamically(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    frozen_now: FrozenDateTimeFactory,
+) -> None:
+    mock_mirakurun(aioclient_mock)
+    await setup_integration(hass, config_entry)
+
+    tuners = load_fixture("tuners.json")
+    tuners.append({**tuners[1], "index": 16, "name": "PX-T3"})
+    aioclient_mock.clear_requests()
+    mock_mirakurun(aioclient_mock, tuners=tuners)
+    await _refresh_status(hass, frozen_now)
+
+    assert _state(hass, f"{ENTRY_ID}_tuner_16_state") == "free"
+
+
+async def test_removed_tuner_becomes_unavailable(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    frozen_now: FrozenDateTimeFactory,
+) -> None:
+    mock_mirakurun(aioclient_mock)
+    await setup_integration(hass, config_entry)
+
+    aioclient_mock.clear_requests()
+    mock_mirakurun(aioclient_mock, tuners=load_fixture("tuners.json")[:2])
+    await _refresh_status(hass, frozen_now)
+
+    assert _state(hass, f"{ENTRY_ID}_tuner_15_state") == STATE_UNAVAILABLE
+    assert _state(hass, f"{ENTRY_ID}_tuner_14_state") == "free"
+
+
+async def test_status_failure_makes_entities_unavailable(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    frozen_now: FrozenDateTimeFactory,
+) -> None:
+    mock_mirakurun(aioclient_mock)
+    await setup_integration(hass, config_entry)
+
+    aioclient_mock.clear_requests()
+    mock_mirakurun(aioclient_mock, fail_status=True)
+    await _refresh_status(hass, frozen_now)
+
+    assert _state(hass, f"{ENTRY_ID}_server_tuners_in_use") == STATE_UNAVAILABLE
+    assert _state(hass, f"{ENTRY_ID}_tuner_12_state") == STATE_UNAVAILABLE

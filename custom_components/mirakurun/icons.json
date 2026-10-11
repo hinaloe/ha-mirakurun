@@ -1,0 +1,35 @@
+{
+  "entity": {
+    "sensor": {
+      "tuners_in_use": {"default": "mdi:television-classic"},
+      "tuners_free": {"default": "mdi:television-classic-off"},
+      "streams": {"default": "mdi:transit-connection-variant"},
+      "stored_events": {"default": "mdi:database"},
+      "tuner_respawns": {"default": "mdi:restart"},
+      "uncaught_exceptions": {"default": "mdi:alert-circle-outline"},
+      "unhandled_rejections": {"default": "mdi:alert-circle-outline"},
+      "buffer_overflows": {"default": "mdi:tray-full"},
+      "decoder_respawns": {"default": "mdi:restart"},
+      "tuner_state": {
+        "default": "mdi:tune-vertical",
+        "state": {
+          "fault": "mdi:alert",
+          "disabled": "mdi:cancel",
+          "in_use": "mdi:record-rec",
+          "free": "mdi:sleep"
+        }
+      },
+      "tuner_channel": {"default": "mdi:television-guide"},
+      "tuner_user": {"default": "mdi:account"},
+      "current_program": {"default": "mdi:television-play"},
+      "next_program": {"default": "mdi:television-guide"}
+    },
+    "binary_sensor": {
+      "epg_gathering": {"default": "mdi:download"},
+      "subchannel_split": {"default": "mdi:call-split"}
+    },
+    "calendar": {
+      "schedule": {"default": "mdi:calendar-clock"}
+    }
+  }
+}

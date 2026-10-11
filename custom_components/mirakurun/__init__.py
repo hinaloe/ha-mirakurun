@@ -16,7 +16,7 @@ from .coordinator import (
     VersionCoordinator,
 )
 
-PLATFORMS: list[Platform] = []
+PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: MirakurunConfigEntry) -> bool:
