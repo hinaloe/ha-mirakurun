@@ -7,6 +7,7 @@ from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_fire_time_changed,
@@ -17,7 +18,14 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import (
 
 from custom_components.mirakurun.const import DOMAIN
 
-from .common import ENTRY_ID, entity_id, load_fixture, mock_mirakurun, setup_integration
+from .common import (
+    ENTRY_ID,
+    PROGRAMS,
+    entity_id,
+    load_fixture,
+    mock_mirakurun,
+    setup_integration,
+)
 
 
 def _state(hass: HomeAssistant, unique_id: str) -> str:
@@ -127,12 +135,13 @@ async def test_removed_tuner_becomes_unavailable(
     assert _state(hass, f"{ENTRY_ID}_tuner_14_state") == "free"
 
 
-async def test_tuner_entities_return_after_cleanup(
+async def test_briefly_missing_tuner_keeps_device_and_entities(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,
     config_entry: MockConfigEntry,
     frozen_now: FrozenDateTimeFactory,
     device_registry: dr.DeviceRegistry,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     mock_mirakurun(aioclient_mock)
     await setup_integration(hass, config_entry)
@@ -140,28 +149,29 @@ async def test_tuner_entities_return_after_cleanup(
     aioclient_mock.clear_requests()
     mock_mirakurun(aioclient_mock, tuners=load_fixture("tuners.json")[:2])
     await _refresh_status(hass, frozen_now)
-    # A broadcast list change runs the stale device cleanup.
+    # A broadcast list change while the tuner is missing must not remove its
+    # device: tuners are only cleaned up at setup.
     fuji = {**load_fixture("services.json")[0], "id": 3274101056, "serviceId": 1056}
     aioclient_mock.clear_requests()
     mock_mirakurun(
         aioclient_mock,
         tuners=load_fixture("tuners.json")[:2],
         services=[*load_fixture("services.json"), fuji],
+        programs={**PROGRAMS, (32736, 1056): []},
     )
     await config_entry.runtime_data.services.async_refresh()
     await hass.async_block_till_done(wait_background_tasks=True)
-    assert (
-        device_registry.async_get_device_by_identifier(
-            (DOMAIN, f"{ENTRY_ID}_tuner_15"), ENTRY_ID
-        )
-        is None
+    assert device_registry.async_get_device_by_identifier(
+        (DOMAIN, f"{ENTRY_ID}_tuner_15"), ENTRY_ID
     )
+    assert _state(hass, f"{ENTRY_ID}_tuner_15_state") == STATE_UNAVAILABLE
 
     aioclient_mock.clear_requests()
     mock_mirakurun(aioclient_mock)
     await _refresh_status(hass, frozen_now)
 
     assert _state(hass, f"{ENTRY_ID}_tuner_15_state") == "fault"
+    assert "does not generate unique IDs" not in caplog.text
 
 
 async def test_status_failure_makes_entities_unavailable(

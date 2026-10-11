@@ -48,7 +48,7 @@ The URL can be changed later with **Reconfigure**.
 ## Data updates
 
 The integration polls Mirakurun's REST API: `/api/status` and `/api/tuners` at the status interval, `/api/programs` for broadcasts whose device is enabled at the program interval, `/api/services` plus the main service's programs of each physical channel of the selected types at the broadcast list interval (and once when the options open, to offer the types your server has), and `/api/version` every 12 hours.
-Devices of tuners that no longer exist are cleaned up on the next reload or broadcast list refresh; you can also delete them manually from the device page.
+A tuner that disappears from Mirakurun keeps its device and shows as unavailable; the device is cleaned up on the next reload, or you can delete it manually from the device page.
 It never opens a stream, so it does not occupy tuners or interfere with recordings.
 
 ## Examples

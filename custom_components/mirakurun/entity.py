@@ -124,9 +124,8 @@ def async_add_tuner_entities(
 
     @callback
     def add_new_tuners() -> None:
-        # Forget vanished tuners: their device may be cleaned up while they are
-        # gone, so they need entities again when they return.
-        known.intersection_update(t.index for t in coordinator.data.tuners)
+        # Tuners that drop out keep their entities (they turn unavailable), so
+        # known indexes are never forgotten; stale tuners go away at setup.
         new = [t for t in coordinator.data.tuners if t.index not in known]
         if not new:
             return

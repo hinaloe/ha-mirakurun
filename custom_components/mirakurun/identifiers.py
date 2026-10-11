@@ -18,3 +18,8 @@ def tuner_identifier(entry: ConfigEntry[Any], index: int) -> str:
 def broadcast_identifier(entry: ConfigEntry[Any], main_id: int) -> str:
     """Return the device identifier of a broadcast."""
     return f"{entry.entry_id}_broadcast_{main_id}"
+
+
+def is_broadcast_identifier(entry: ConfigEntry[Any], identifier: str) -> bool:
+    """Return whether a device identifier belongs to a broadcast."""
+    return identifier.startswith(f"{entry.entry_id}_broadcast_")

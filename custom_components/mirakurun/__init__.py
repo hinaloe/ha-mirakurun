@@ -23,7 +23,12 @@ from .coordinator import (
     VersionCoordinator,
 )
 from .entity import server_device_info
-from .identifiers import broadcast_identifier, server_identifier, tuner_identifier
+from .identifiers import (
+    broadcast_identifier,
+    is_broadcast_identifier,
+    server_identifier,
+    tuner_identifier,
+)
 from .store import ClassificationStore
 
 PLATFORMS: list[Platform] = [
@@ -62,7 +67,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MirakurunConfigEntry) ->
 
     @callback
     def _async_broadcasts_changed() -> None:
-        _async_remove_stale_devices(hass, entry)
+        _async_remove_stale_devices(hass, entry, broadcasts_only=True)
         entry.async_create_background_task(
             hass, programs.async_request_refresh(), f"{DOMAIN}_program_refresh"
         )
@@ -122,10 +127,23 @@ def _current_identifiers(entry: MirakurunConfigEntry) -> set[tuple[str, str]]:
 
 @callback
 def _async_remove_stale_devices(
-    hass: HomeAssistant, entry: MirakurunConfigEntry
+    hass: HomeAssistant, entry: MirakurunConfigEntry, *, broadcasts_only: bool = False
 ) -> None:
+    """Remove devices that no longer exist on the server.
+
+    Tuners only change with Mirakurun's configuration, so runtime cleanup
+    (``broadcasts_only``) leaves them alone; a tuner that briefly drops out of
+    the status keeps its device and entities.
+    """
     current = _current_identifiers(entry)
     registry = dr.async_get(hass)
     for device in dr.async_entries_for_config_entry(registry, entry.entry_id):
-        if not device.identifiers & current:
-            registry.async_remove_device(device.id)
+        if device.identifiers & current:
+            continue
+        if broadcasts_only and not any(
+            is_broadcast_identifier(entry, identifier)
+            for domain, identifier in device.identifiers
+            if domain == DOMAIN
+        ):
+            continue
+        registry.async_remove_device(device.id)
