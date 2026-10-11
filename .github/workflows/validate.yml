@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    # Catch new checks in hassfest and HACS without waiting for a commit.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
 
 jobs:
   hassfest:
@@ -13,9 +17,6 @@ jobs:
       - uses: home-assistant/actions/hassfest@master
 
   hacs:
-    # HACS downloads hacs.json and manifest.json from raw.githubusercontent.com
-    # without a token, so validation only works once the repository is public.
-    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     steps:
       - uses: hacs/action@main
