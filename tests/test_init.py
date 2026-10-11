@@ -17,6 +17,7 @@ from custom_components.mirakurun.const import (
     CONF_CHANNEL_TYPES,
     CONF_PROGRAM_INTERVAL,
     CONF_STATUS_INTERVAL,
+    DEFAULT_SERVICE_INTERVAL,
     DOMAIN,
     SERVICE_RECHECK_INTERVAL,
     VERSION_INTERVAL,
@@ -357,6 +358,8 @@ async def test_empty_service_list_keeps_broadcasts(
 
     assert not services.last_update_success
     assert len(services.data.broadcasts) == 3
+    # Mirakurun is probably refilling its services; look again soon.
+    assert services.update_interval == SERVICE_RECHECK_INTERVAL
 
 
 async def test_vanished_selected_type_keeps_broadcasts(
@@ -380,6 +383,7 @@ async def test_vanished_selected_type_keeps_broadcasts(
     assert device_registry.async_get_device_by_identifier(
         (DOMAIN, f"{ENTRY_ID}_broadcast_3273601024"), config_entry.entry_id
     )
+    assert services.update_interval == SERVICE_RECHECK_INTERVAL
 
 
 async def test_selected_type_without_broadcasts_is_not_missing(
@@ -470,7 +474,7 @@ async def test_remove_entry_removes_classification(
     assert await ClassificationStore(hass, ENTRY_ID).async_load() == {}
 
 
-DEFAULT_SERVICE_UPDATE = timedelta(hours=24)
+DEFAULT_SERVICE_UPDATE = timedelta(hours=DEFAULT_SERVICE_INTERVAL)
 
 
 async def test_vanished_broadcast_is_rechecked_soon(

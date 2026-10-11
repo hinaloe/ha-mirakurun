@@ -136,7 +136,9 @@ class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
             raise _update_failed(err) from err
         if not discovery.channel_types:
             # An empty service list (e.g. during a channel scan) must not wipe
-            # every broadcast device.
+            # every broadcast device. Mirakurun is probably refilling its
+            # services, so look again soon.
+            self.update_interval = SERVICE_RECHECK_INTERVAL
             raise UpdateFailed(translation_domain=DOMAIN, translation_key="no_services")
         if self.data is not None:
             # Likewise when every service of a selected type vanishes (e.g.
@@ -144,6 +146,7 @@ class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
             # Types that never had broadcasts are not missing.
             previous = {b.main.channel.type for b in self.data.broadcasts}
             if missing := (previous & set(channel_types)) - discovery.channel_types:
+                self.update_interval = SERVICE_RECHECK_INTERVAL
                 raise UpdateFailed(
                     translation_domain=DOMAIN,
                     translation_key="selected_types_missing",
