@@ -24,7 +24,7 @@ async def async_setup_entry(
     programs = entry.runtime_data.programs
     async_add_entities(
         MirakurunCalendar(programs, entry, broadcast)
-        for broadcast in entry.runtime_data.broadcasts
+        for broadcast in entry.runtime_data.services.data.broadcasts
     )
 
 

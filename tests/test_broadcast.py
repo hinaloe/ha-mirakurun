@@ -14,14 +14,10 @@ from custom_components.mirakurun.broadcast import (
     Broadcast,
     classification_from_option_map,
     classify_channel,
-    default_selection,
     detect_splits,
     discover,
-    discover_broadcasts,
     distinct_sub_programs,
     group_by_channel,
-    resolve_broadcasts,
-    to_option_map,
 )
 from custom_components.mirakurun.models import Program, Service
 from custom_components.mirakurun.programs import build_schedule
@@ -95,53 +91,6 @@ def test_classify_threshold_is_inclusive() -> None:
     ]
     result = classify_channel([NHK_SVC, NHK2_SVC], half, NOW)
     assert result == [Broadcast(NHK_SVC, (NHK2_SVC,))]
-
-
-async def test_discover_broadcasts(
-    hass: HomeAssistant, mirakurun: AiohttpClientMocker
-) -> None:
-    client = MirakurunClient(async_get_clientsession(hass), BASE_URL)
-    result = await discover_broadcasts(client, NOW)
-    assert result == [
-        Broadcast(NHK_SVC, (NHK2_SVC,)),
-        Broadcast(MX1_SVC),
-        Broadcast(MX2_SVC),
-        Broadcast(SHOP_SVC),
-        Broadcast(TOEI_SVC),
-    ]
-
-
-async def test_discover_broadcasts_with_failed_channel(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
-) -> None:
-    mock_mirakurun(aioclient_mock, fail_programs={NHK})
-    client = MirakurunClient(async_get_clientsession(hass), BASE_URL)
-    result = await discover_broadcasts(client, NOW)
-    assert result[:2] == [Broadcast(NHK_SVC), Broadcast(NHK2_SVC)]
-    assert len(result) == 6
-
-
-def test_option_round_trip() -> None:
-    broadcasts = [
-        Broadcast(NHK_SVC, (NHK2_SVC,)),
-        Broadcast(MX2_SVC),
-        Broadcast(SHOP_SVC),
-    ]
-    option_map = to_option_map(broadcasts)
-    assert option_map == {"3273601024": [3273601025], "3239123610": [], "700055": []}
-    assert default_selection(broadcasts) == ["3273601024", "3239123610"]
-    assert resolve_broadcasts(option_map, ["3273601024", "700055"], SERVICES) == [
-        Broadcast(NHK_SVC, (NHK2_SVC,)),
-        Broadcast(SHOP_SVC),
-    ]
-
-
-def test_resolve_broadcasts_skips_missing_services() -> None:
-    option_map = {"3273601024": [3273601025, 9999], "1234": []}
-    remaining = [s for s in SERVICES if s.service_id != 1025]
-    assert resolve_broadcasts(option_map, ["3273601024", "1234"], remaining) == [
-        Broadcast(NHK_SVC)
-    ]
 
 
 def test_distinct_sub_programs() -> None:

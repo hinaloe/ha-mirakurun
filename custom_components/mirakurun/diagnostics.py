@@ -7,7 +7,12 @@ from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import CONF_URL
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_BROADCASTS, CONF_PROGRAM_INTERVAL, CONF_STATUS_INTERVAL
+from .const import (
+    CONF_CHANNEL_TYPES,
+    CONF_PROGRAM_INTERVAL,
+    CONF_SERVICE_INTERVAL,
+    CONF_STATUS_INTERVAL,
+)
 from .coordinator import MirakurunConfigEntry
 from .models import Tuner
 
@@ -34,14 +39,16 @@ async def async_get_config_entry_diagnostics(
             "options": {
                 key: entry.options.get(key)
                 for key in (
-                    CONF_BROADCASTS,
+                    CONF_CHANNEL_TYPES,
                     CONF_STATUS_INTERVAL,
                     CONF_PROGRAM_INTERVAL,
+                    CONF_SERVICE_INTERVAL,
                 )
             },
         },
         "status": asdict(status.status),
         "tuners": [_tuner_diagnostics(tuner) for tuner in status.tuners],
+        "broadcasts": len(data.services.data.broadcasts),
         "version": asdict(version) if version is not None else None,
         "programs": {
             str(main_id): {

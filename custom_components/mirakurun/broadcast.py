@@ -96,29 +96,6 @@ def classify_channel(
     return [Broadcast(main, tuple(subs)), *(Broadcast(s) for s in independents)]
 
 
-async def discover_broadcasts(
-    client: MirakurunClient, now: datetime
-) -> list[Broadcast]:
-    """Fetch services and classify every physical channel."""
-    services = await client.get_services()
-    semaphore = asyncio.Semaphore(DISCOVERY_CONCURRENCY)
-
-    async def classify(group: list[Service]) -> list[Broadcast]:
-        main = group[0]
-        programs: list[Program] | None
-        async with semaphore:
-            try:
-                programs = await client.get_programs(main.network_id, main.service_id)
-            except MirakurunError:
-                programs = None
-        return classify_channel(group, programs, now)
-
-    results = await asyncio.gather(
-        *(classify(group) for group in group_by_channel(services))
-    )
-    return [broadcast for result in results for broadcast in result]
-
-
 async def discover(
     client: MirakurunClient,
     now: datetime,
@@ -158,33 +135,6 @@ def classification_from_option_map(
 ) -> Classification:
     """Seed a classification from legacy options: listed subchannels were dependent."""
     return {int(sid): True for subs in option_map.values() for sid in subs}
-
-
-def to_option_map(broadcasts: Sequence[Broadcast]) -> dict[str, list[int]]:
-    """Serialize broadcasts for config entry options."""
-    return {str(b.main.id): [s.id for s in b.subs] for b in broadcasts}
-
-
-def default_selection(broadcasts: Sequence[Broadcast]) -> list[str]:
-    """Return the broadcasts selected by default: every terrestrial broadcast."""
-    return [str(b.main.id) for b in broadcasts if b.main.channel.type == "GR"]
-
-
-def resolve_broadcasts(
-    option_map: Mapping[str, Sequence[int]],
-    selected: Sequence[str],
-    services: Sequence[Service],
-) -> list[Broadcast]:
-    """Rebuild selected broadcasts, skipping services that no longer exist."""
-    by_id = {service.id: service for service in services}
-    result: list[Broadcast] = []
-    for key in selected:
-        main = by_id.get(int(key))
-        if main is None:
-            continue
-        subs = tuple(by_id[sid] for sid in option_map.get(key, ()) if sid in by_id)
-        result.append(Broadcast(main, subs))
-    return result
 
 
 def _main_keys(main_schedule: Schedule) -> set[tuple[int, datetime]]:

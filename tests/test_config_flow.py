@@ -14,14 +14,20 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import (
 )
 
 from custom_components.mirakurun.const import (
-    CONF_BROADCAST_MAP,
-    CONF_BROADCASTS,
+    CONF_CHANNEL_TYPES,
     CONF_PROGRAM_INTERVAL,
+    CONF_SERVICE_INTERVAL,
     CONF_STATUS_INTERVAL,
     DOMAIN,
 )
 
-from .common import BASE_URL, DEFAULT_OPTIONS, mock_mirakurun, setup_integration
+from .common import (
+    BASE_URL,
+    DEFAULT_OPTIONS,
+    create_entry,
+    mock_mirakurun,
+    setup_integration,
+)
 
 OTHER_URL = "http://other.local:40772"
 
@@ -107,21 +113,6 @@ async def test_user_flow_without_version_endpoint(
         result["flow_id"], {CONF_URL: BASE_URL}
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-
-
-async def test_user_flow_services_fail(
-    hass: HomeAssistant,
-    aioclient_mock: AiohttpClientMocker,
-    mock_setup_entry: AsyncMock,
-) -> None:
-    mock_mirakurun(aioclient_mock, fail_services=True)
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": SOURCE_USER}
-    )
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_URL: BASE_URL}
-    )
-    assert result["errors"] == {"base": "cannot_connect"}
 
 
 async def test_user_flow_unknown_error(
@@ -252,35 +243,34 @@ async def test_options_flow(
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
         {
-            CONF_BROADCASTS: ["700055"],
+            CONF_CHANNEL_TYPES: ["CS"],
             CONF_STATUS_INTERVAL: 60,
             CONF_PROGRAM_INTERVAL: 10,
+            CONF_SERVICE_INTERVAL: 6,
         },
     )
     await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert config_entry.options == {
-        CONF_BROADCAST_MAP: DEFAULT_OPTIONS[CONF_BROADCAST_MAP],
-        CONF_BROADCASTS: ["700055"],
+        CONF_CHANNEL_TYPES: ["CS"],
         CONF_STATUS_INTERVAL: 60,
         CONF_PROGRAM_INTERVAL: 10,
+        CONF_SERVICE_INTERVAL: 6,
     }
-    assert [b.main.service_id for b in config_entry.runtime_data.broadcasts] == [55]
+    broadcasts = config_entry.runtime_data.services.data.broadcasts
+    assert [b.main.service_id for b in broadcasts] == [55, 218]
 
 
-async def test_options_flow_drops_vanished_selection(
+async def test_options_flow_offers_server_types(
     hass: HomeAssistant, mirakurun: AiohttpClientMocker
 ) -> None:
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data={CONF_URL: BASE_URL},
-        options={**DEFAULT_OPTIONS, CONF_BROADCASTS: ["3273601024", "1"]},
-    )
+    entry = create_entry({**DEFAULT_OPTIONS, CONF_CHANNEL_TYPES: ["GR", "SKY"]})
     entry.add_to_hass(hass)
     result = await hass.config_entries.options.async_init(entry.entry_id)
     schema = result["data_schema"].schema
-    default = next(k for k in schema if k == CONF_BROADCASTS).default()
-    assert default == ["3273601024"]
+    key = next(k for k in schema if k == CONF_CHANNEL_TYPES)
+    assert schema[key].config["options"] == ["CS", "GR"]
+    assert key.default() == ["GR"]
 
 
 async def test_options_flow_cannot_connect(

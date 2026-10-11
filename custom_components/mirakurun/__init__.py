@@ -2,26 +2,29 @@
 
 from homeassistant.const import CONF_URL, Platform
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import MirakurunClient, MirakurunError
-from .broadcast import resolve_broadcasts
-from .const import CONF_BROADCAST_MAP, CONF_BROADCASTS, DOMAIN
+from .api import MirakurunClient
+from .broadcast import classification_from_option_map
+from .const import (
+    CONF_BROADCAST_MAP,
+    CONF_PROGRAM_INTERVAL,
+    CONF_STATUS_INTERVAL,
+    DOMAIN,
+    default_options,
+)
 from .coordinator import (
     MirakurunConfigEntry,
     MirakurunRuntimeData,
     ProgramCoordinator,
+    ServiceCoordinator,
     StatusCoordinator,
     VersionCoordinator,
 )
-from .entity import (
-    broadcast_identifier,
-    server_device_info,
-    server_identifier,
-    tuner_identifier,
-)
+from .entity import server_device_info
+from .identifiers import broadcast_identifier, server_identifier, tuner_identifier
+from .store import ClassificationStore
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
@@ -34,26 +37,14 @@ PLATFORMS: list[Platform] = [
 async def async_setup_entry(hass: HomeAssistant, entry: MirakurunConfigEntry) -> bool:
     """Set up Mirakurun from a config entry."""
     client = MirakurunClient(async_get_clientsession(hass), entry.data[CONF_URL])
-    try:
-        services = await client.get_services()
-    except MirakurunError as err:
-        raise ConfigEntryNotReady(
-            translation_domain=DOMAIN,
-            translation_key="cannot_connect",
-            translation_placeholders={"error": str(err)},
-        ) from err
-
-    broadcasts = tuple(
-        resolve_broadcasts(
-            entry.options.get(CONF_BROADCAST_MAP, {}),
-            entry.options.get(CONF_BROADCASTS, []),
-            services,
-        )
+    services = ServiceCoordinator(
+        hass, entry, client, ClassificationStore(hass, entry.entry_id)
     )
     status = StatusCoordinator(hass, entry, client)
-    programs = ProgramCoordinator(hass, entry, client, broadcasts)
+    programs = ProgramCoordinator(hass, entry, client, services)
     version = VersionCoordinator(hass, entry, client)
 
+    await services.async_config_entry_first_refresh()
     await status.async_config_entry_first_refresh()
     await programs.async_config_entry_first_refresh()
     # The latest version comes from npm via Mirakurun and may be unreachable;
@@ -61,7 +52,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MirakurunConfigEntry) ->
     await version.async_refresh()
 
     entry.runtime_data = MirakurunRuntimeData(
-        client, broadcasts, status, programs, version
+        client, services, status, programs, version
     )
     server_device = dr.async_get(hass).async_get_or_create(
         config_entry_id=entry.entry_id, **server_device_info(entry)
@@ -75,6 +66,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: MirakurunConfigEntry) ->
 async def async_unload_entry(hass: HomeAssistant, entry: MirakurunConfigEntry) -> bool:
     """Unload a config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: MirakurunConfigEntry) -> bool:
+    """Migrate per-broadcast options (minor version 1) to broadcast types."""
+    if entry.version > 1:
+        return False
+    if entry.minor_version < 2:
+        legacy = dict(entry.options)
+        options = default_options()
+        for key in (CONF_STATUS_INTERVAL, CONF_PROGRAM_INTERVAL):
+            if key in legacy:
+                options[key] = legacy[key]
+        await ClassificationStore(hass, entry.entry_id).async_save(
+            classification_from_option_map(legacy.get(CONF_BROADCAST_MAP, {}))
+        )
+        hass.config_entries.async_update_entry(entry, options=options, minor_version=2)
+    return True
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: MirakurunConfigEntry) -> None:
+    """Remove stored data of a deleted config entry."""
+    await ClassificationStore(hass, entry.entry_id).async_remove()
 
 
 async def async_remove_config_entry_device(
@@ -93,7 +106,7 @@ def _current_identifiers(entry: MirakurunConfigEntry) -> set[tuple[str, str]]:
     )
     identifiers.update(
         (DOMAIN, broadcast_identifier(entry, broadcast.main.id))
-        for broadcast in data.broadcasts
+        for broadcast in data.services.data.broadcasts
     )
     return identifiers
 

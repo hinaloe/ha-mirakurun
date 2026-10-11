@@ -18,7 +18,9 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import (
 from custom_components.mirakurun.const import (
     CONF_BROADCAST_MAP,
     CONF_BROADCASTS,
+    CONF_CHANNEL_TYPES,
     CONF_PROGRAM_INTERVAL,
+    CONF_SERVICE_INTERVAL,
     CONF_STATUS_INTERVAL,
     DOMAIN,
 )
@@ -104,15 +106,21 @@ PROGRAMS: dict[tuple[int, int], list[dict[str, Any]]] = {
 }
 
 DEFAULT_OPTIONS: dict[str, Any] = {
+    CONF_CHANNEL_TYPES: ["GR"],
+    CONF_STATUS_INTERVAL: 30,
+    CONF_PROGRAM_INTERVAL: 30,
+    CONF_SERVICE_INTERVAL: 24,
+}
+
+# Options written by phase 1 (config entry minor version 1).
+LEGACY_OPTIONS: dict[str, Any] = {
     CONF_BROADCAST_MAP: {
         "3273601024": [3273601025],
         "3239123608": [],
         "3239123610": [],
-        "700055": [],
-        "700218": [],
     },
     CONF_BROADCASTS: ["3273601024", "3239123608", "3239123610"],
-    CONF_STATUS_INTERVAL: 30,
+    CONF_STATUS_INTERVAL: 45,
     CONF_PROGRAM_INTERVAL: 30,
 }
 
@@ -122,6 +130,7 @@ def mock_mirakurun(
     *,
     base_url: str = BASE_URL,
     tuners: Sequence[Mapping[str, Any]] | None = None,
+    services: Sequence[Mapping[str, Any]] | None = None,
     programs: Mapping[tuple[int, int], list[dict[str, Any]]] | None = None,
     fail_programs: Iterable[tuple[int, int]] = (),
     fail_status: bool = False,
@@ -145,7 +154,11 @@ def mock_mirakurun(
         list(tuners) if tuners is not None else load_fixture("tuners.json"),
         fail_status,
     )
-    register("services", load_fixture("services.json"), fail_services)
+    register(
+        "services",
+        list(services) if services is not None else load_fixture("services.json"),
+        fail_services,
+    )
     for (network_id, service_id), items in (programs or PROGRAMS).items():
         params = {"networkId": network_id, "serviceId": service_id}
         if (network_id, service_id) in failing:
@@ -156,7 +169,9 @@ def mock_mirakurun(
             aioclient_mock.get(f"{api}/programs", params=params, json=items)
 
 
-def create_entry(options: Mapping[str, Any] | None = None) -> MockConfigEntry:
+def create_entry(
+    options: Mapping[str, Any] | None = None, minor_version: int = 2
+) -> MockConfigEntry:
     """Create a config entry for the mocked server."""
     return MockConfigEntry(
         domain=DOMAIN,
@@ -164,6 +179,7 @@ def create_entry(options: Mapping[str, Any] | None = None) -> MockConfigEntry:
         data={CONF_URL: BASE_URL},
         options=dict(options if options is not None else DEFAULT_OPTIONS),
         entry_id=ENTRY_ID,
+        minor_version=minor_version,
     )
 
 

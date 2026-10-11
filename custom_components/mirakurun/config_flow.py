@@ -1,6 +1,5 @@
 """Config flow for Mirakurun."""
 
-from collections.abc import Sequence
 import logging
 from typing import Any
 
@@ -16,7 +15,6 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
-    SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
@@ -24,24 +22,28 @@ from homeassistant.helpers.selector import (
     TextSelectorConfig,
     TextSelectorType,
 )
-from homeassistant.util import dt as dt_util
 import probatio
 from yarl import URL
 
 from .api import MirakurunClient, MirakurunError, normalize_url
-from .broadcast import Broadcast, default_selection, discover_broadcasts, to_option_map
+from .broadcast import TV_SERVICE_TYPE
 from .const import (
-    CONF_BROADCAST_MAP,
-    CONF_BROADCASTS,
+    CONF_CHANNEL_TYPES,
     CONF_PROGRAM_INTERVAL,
+    CONF_SERVICE_INTERVAL,
     CONF_STATUS_INTERVAL,
+    DEFAULT_CHANNEL_TYPES,
     DEFAULT_PROGRAM_INTERVAL,
+    DEFAULT_SERVICE_INTERVAL,
     DEFAULT_STATUS_INTERVAL,
     DOMAIN,
     MAX_PROGRAM_INTERVAL,
+    MAX_SERVICE_INTERVAL,
     MAX_STATUS_INTERVAL,
     MIN_PROGRAM_INTERVAL,
+    MIN_SERVICE_INTERVAL,
     MIN_STATUS_INTERVAL,
+    default_options,
 )
 from .coordinator import MirakurunConfigEntry
 
@@ -56,31 +58,27 @@ URL_SCHEMA = probatio.Schema(
 )
 
 
-def build_options(
-    broadcasts: Sequence[Broadcast],
-    selected: list[str] | None = None,
-    status_interval: int = DEFAULT_STATUS_INTERVAL,
-    program_interval: int = DEFAULT_PROGRAM_INTERVAL,
-) -> dict[str, Any]:
-    """Build config entry options from classified broadcasts."""
-    return {
-        CONF_BROADCAST_MAP: to_option_map(broadcasts),
-        CONF_BROADCASTS: default_selection(broadcasts)
-        if selected is None
-        else selected,
-        CONF_STATUS_INTERVAL: status_interval,
-        CONF_PROGRAM_INTERVAL: program_interval,
-    }
-
-
 def _title(url: str) -> str:
     return f"Mirakurun ({URL(url).host})"
+
+
+def _interval_selector(minimum: int, maximum: int, unit: str) -> NumberSelector:
+    return NumberSelector(
+        NumberSelectorConfig(
+            min=minimum,
+            max=maximum,
+            step=1,
+            unit_of_measurement=unit,
+            mode=NumberSelectorMode.BOX,
+        )
+    )
 
 
 class MirakurunConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Mirakurun."""
 
     VERSION = 1
+    MINOR_VERSION = 2
 
     @staticmethod
     @callback
@@ -116,17 +114,11 @@ class MirakurunConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._async_abort_entries_match({CONF_URL: url})
                 errors = await self._async_check(url)
                 if not errors:
-                    client = MirakurunClient(async_get_clientsession(self.hass), url)
-                    try:
-                        broadcasts = await discover_broadcasts(client, dt_util.utcnow())
-                    except MirakurunError:
-                        errors["base"] = "cannot_connect"
-                    else:
-                        return self.async_create_entry(
-                            title=_title(url),
-                            data={CONF_URL: url},
-                            options=build_options(broadcasts),
-                        )
+                    return self.async_create_entry(
+                        title=_title(url),
+                        data={CONF_URL: url},
+                        options=default_options(),
+                    )
         return self.async_show_form(
             step_id="user",
             data_schema=self.add_suggested_values_to_schema(URL_SCHEMA, user_input),
@@ -162,81 +154,67 @@ class MirakurunConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class MirakurunOptionsFlow(OptionsFlowWithReload):
-    """Select broadcasts and polling intervals."""
-
-    def __init__(self) -> None:
-        self._broadcasts: list[Broadcast] = []
+    """Select broadcast types and polling intervals."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Show the options form, re-classifying broadcasts on open."""
+        """Show the options form with the channel types the server has."""
         if user_input is not None:
             return self.async_create_entry(
-                data=build_options(
-                    self._broadcasts,
-                    selected=list(user_input[CONF_BROADCASTS]),
-                    status_interval=int(user_input[CONF_STATUS_INTERVAL]),
-                    program_interval=int(user_input[CONF_PROGRAM_INTERVAL]),
-                )
+                data={
+                    CONF_CHANNEL_TYPES: list(user_input[CONF_CHANNEL_TYPES]),
+                    CONF_STATUS_INTERVAL: int(user_input[CONF_STATUS_INTERVAL]),
+                    CONF_PROGRAM_INTERVAL: int(user_input[CONF_PROGRAM_INTERVAL]),
+                    CONF_SERVICE_INTERVAL: int(user_input[CONF_SERVICE_INTERVAL]),
+                }
             )
 
         client = MirakurunClient(
             async_get_clientsession(self.hass), self.config_entry.data[CONF_URL]
         )
         try:
-            self._broadcasts = await discover_broadcasts(client, dt_util.utcnow())
+            services = await client.get_services()
         except MirakurunError:
             return self.async_abort(reason="cannot_connect")
 
+        available = sorted(
+            {s.channel.type for s in services if s.type == TV_SERVICE_TYPE}
+        )
         options = self.config_entry.options
-        available = {str(b.main.id) for b in self._broadcasts}
         selected = [
-            key
-            for key in options.get(CONF_BROADCASTS, default_selection(self._broadcasts))
-            if key in available
+            channel_type
+            for channel_type in options.get(CONF_CHANNEL_TYPES, DEFAULT_CHANNEL_TYPES)
+            if channel_type in available
         ]
         schema = probatio.Schema(
             {
-                probatio.Required(CONF_BROADCASTS, default=selected): SelectSelector(
+                probatio.Required(CONF_CHANNEL_TYPES, default=selected): SelectSelector(
                     SelectSelectorConfig(
-                        options=[
-                            SelectOptionDict(
-                                value=str(b.main.id),
-                                label=f"{b.main.channel.type}: {b.main.name}",
-                            )
-                            for b in self._broadcasts
-                        ],
+                        options=available,
                         multiple=True,
-                        mode=SelectSelectorMode.DROPDOWN,
+                        mode=SelectSelectorMode.LIST,
+                        translation_key=CONF_CHANNEL_TYPES,
                     )
                 ),
                 probatio.Required(
                     CONF_STATUS_INTERVAL,
                     default=options.get(CONF_STATUS_INTERVAL, DEFAULT_STATUS_INTERVAL),
-                ): NumberSelector(
-                    NumberSelectorConfig(
-                        min=MIN_STATUS_INTERVAL,
-                        max=MAX_STATUS_INTERVAL,
-                        step=1,
-                        unit_of_measurement="s",
-                        mode=NumberSelectorMode.BOX,
-                    )
-                ),
+                ): _interval_selector(MIN_STATUS_INTERVAL, MAX_STATUS_INTERVAL, "s"),
                 probatio.Required(
                     CONF_PROGRAM_INTERVAL,
                     default=options.get(
                         CONF_PROGRAM_INTERVAL, DEFAULT_PROGRAM_INTERVAL
                     ),
-                ): NumberSelector(
-                    NumberSelectorConfig(
-                        min=MIN_PROGRAM_INTERVAL,
-                        max=MAX_PROGRAM_INTERVAL,
-                        step=1,
-                        unit_of_measurement="min",
-                        mode=NumberSelectorMode.BOX,
-                    )
+                ): _interval_selector(
+                    MIN_PROGRAM_INTERVAL, MAX_PROGRAM_INTERVAL, "min"
                 ),
+                probatio.Required(
+                    CONF_SERVICE_INTERVAL,
+                    default=options.get(
+                        CONF_SERVICE_INTERVAL, DEFAULT_SERVICE_INTERVAL
+                    ),
+                ): _interval_selector(MIN_SERVICE_INTERVAL, MAX_SERVICE_INTERVAL, "h"),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

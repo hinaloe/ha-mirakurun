@@ -20,11 +20,8 @@ async def test_diagnostics(
     result = await async_get_config_entry_diagnostics(hass, config_entry)
 
     assert result["entry"]["data"] == {"url": "**REDACTED**"}
-    assert result["entry"]["options"]["broadcasts"] == [
-        "3273601024",
-        "3239123608",
-        "3239123610",
-    ]
+    assert result["entry"]["options"]["channel_types"] == ["GR"]
+    assert result["broadcasts"] == 3
     assert result["status"]["version"] == "4.0.0-beta.18"
     assert len(result["tuners"]) == 3
     users = [user for tuner in result["tuners"] for user in tuner["users"]]

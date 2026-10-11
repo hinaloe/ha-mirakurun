@@ -183,7 +183,7 @@ async def async_setup_entry(
     programs = entry.runtime_data.programs
     async_add_entities(
         entity
-        for broadcast in entry.runtime_data.broadcasts
+        for broadcast in entry.runtime_data.services.data.broadcasts
         for entity in (
             MirakurunCurrentProgramSensor(programs, entry, broadcast),
             MirakurunNextProgramSensor(programs, entry, broadcast),

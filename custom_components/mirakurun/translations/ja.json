@@ -28,18 +28,30 @@
       "init": {
         "title": "Mirakurun のオプション",
         "data": {
-          "broadcasts": "放送",
+          "channel_types": "放送の種別",
           "status_interval": "チューナーと状態の取得間隔",
-          "program_interval": "番組表の取得間隔"
+          "program_interval": "番組表の取得間隔",
+          "service_interval": "放送一覧の更新間隔"
         },
         "data_description": {
-          "broadcasts": "番組情報のエンティティを作る放送を選びます。ふだんメインと同じ番組を流すサブチャンネルは、メインにまとめられます。",
+          "channel_types": "この種別の放送に番組情報のエンティティを作ります。Mirakurun で増えた放送や消えた放送には自動で追従します。要らない放送はデバイスを無効化して隠してください。",
           "status_interval": "チューナーの使用状況とサーバーの状態を取得する間隔です。",
-          "program_interval": "番組表を取得し直す間隔です。"
+          "program_interval": "番組表を取得し直す間隔です。",
+          "service_interval": "放送一覧を取り直し、サブチャンネルのまとめ方を判定し直す間隔です。"
         }
       }
     },
     "abort": {"cannot_connect": "Mirakurun に接続できませんでした。"}
+  },
+  "selector": {
+    "channel_types": {
+      "options": {
+        "GR": "地上波（GR）",
+        "BS": "BS",
+        "CS": "110度 CS（CS）",
+        "SKY": "スカパー！プレミアムサービス（SKY）"
+      }
+    }
   },
   "entity": {
     "sensor": {
@@ -134,6 +146,7 @@
   },
   "exceptions": {
     "cannot_connect": {"message": "Mirakurun に接続できませんでした: {error}"},
-    "update_failed": {"message": "Mirakurun との通信でエラーが発生しました: {error}"}
+    "update_failed": {"message": "Mirakurun との通信でエラーが発生しました: {error}"},
+    "no_services": {"message": "Mirakurun からテレビのサービスが返されませんでした。"}
   }
 }

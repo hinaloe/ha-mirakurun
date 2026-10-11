@@ -24,23 +24,9 @@ from .coordinator import (
     ProgramCoordinator,
     StatusCoordinator,
 )
+from .identifiers import broadcast_identifier, server_identifier, tuner_identifier
 from .models import Tuner
 from .programs import next_transition
-
-
-def server_identifier(entry: MirakurunConfigEntry) -> str:
-    """Return the device identifier of the server."""
-    return entry.entry_id
-
-
-def tuner_identifier(entry: MirakurunConfigEntry, index: int) -> str:
-    """Return the device identifier of a tuner."""
-    return f"{entry.entry_id}_tuner_{index}"
-
-
-def broadcast_identifier(entry: MirakurunConfigEntry, main_id: int) -> str:
-    """Return the device identifier of a broadcast."""
-    return f"{entry.entry_id}_broadcast_{main_id}"
 
 
 def server_device_info(entry: MirakurunConfigEntry) -> DeviceInfo:

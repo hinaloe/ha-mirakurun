@@ -28,18 +28,30 @@
       "init": {
         "title": "Mirakurun options",
         "data": {
-          "broadcasts": "Broadcasts",
+          "channel_types": "Broadcast types",
           "status_interval": "Tuner and status polling interval",
-          "program_interval": "Program guide polling interval"
+          "program_interval": "Program guide polling interval",
+          "service_interval": "Broadcast list refresh interval"
         },
         "data_description": {
-          "broadcasts": "Broadcasts to create program guide entities for. Subchannels that usually simulcast the main service are grouped with it.",
+          "channel_types": "Broadcasts of these types get program guide entities. Broadcasts added to or removed from Mirakurun are followed automatically; disable a broadcast's device to hide it.",
           "status_interval": "How often to poll tuner usage and server status.",
-          "program_interval": "How often to refresh the program guide."
+          "program_interval": "How often to refresh the program guide.",
+          "service_interval": "How often to refresh the broadcast list and regroup subchannels."
         }
       }
     },
     "abort": {"cannot_connect": "Could not connect to Mirakurun."}
+  },
+  "selector": {
+    "channel_types": {
+      "options": {
+        "GR": "Terrestrial (GR)",
+        "BS": "BS",
+        "CS": "110° CS (CS)",
+        "SKY": "SKY PerfecTV! Premium Service (SKY)"
+      }
+    }
   },
   "entity": {
     "sensor": {
@@ -134,6 +146,7 @@
   },
   "exceptions": {
     "cannot_connect": {"message": "Could not connect to Mirakurun: {error}"},
-    "update_failed": {"message": "Error communicating with Mirakurun: {error}"}
+    "update_failed": {"message": "Error communicating with Mirakurun: {error}"},
+    "no_services": {"message": "Mirakurun returned no TV services."}
   }
 }
