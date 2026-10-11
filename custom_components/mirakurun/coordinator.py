@@ -152,7 +152,7 @@ class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
 
 
 class ProgramCoordinator(DataUpdateCoordinator[dict[int, BroadcastSchedule]]):
-    """Polls programs for the selected broadcasts."""
+    """Polls programs for broadcasts of the selected types whose device is enabled."""
 
     config_entry: MirakurunConfigEntry
 

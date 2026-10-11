@@ -6,9 +6,9 @@ It does not record or schedule recordings; use it alongside EPGStation for that.
 
 ## Features
 
-- **Server**: tuners in use, free tuners, tuner streams, tuner respawns, error counters, whether the program guide is being gathered, and a Mirakurun update entity.
+- **Server**: tuners in use, free tuners, tuner streams, tuner respawns, stored programs, error counters, whether the program guide is being gathered, and a Mirakurun update entity. The stored programs sensor and four error counters (uncaught exceptions, unhandled rejections, buffer overflows, decoder respawns) are disabled by default.
 - **Tuners**: one device per tuner with its state (`free`, `in_use`, `disabled`, `fault`), the channel being received, the highest priority user, and a fault sensor. Tuners added later appear without restarting.
-- **Broadcasts**: one device per broadcast of the selected types, with the current and next program, a calendar of the program guide, and a sensor that turns on while a subchannel airs a different program. Broadcasts added to or removed from Mirakurun are followed automatically; disable a broadcast's device to hide it.
+- **Broadcasts**: one device per broadcast of the selected types, with the current and next program and a calendar of the program guide. Broadcasts with subchannels also get a sensor that turns on while a subchannel airs a different program. Broadcasts added to or removed from Mirakurun are followed automatically; disable a broadcast's device to hide it.
 
 ### Multichannel broadcasts
 
@@ -27,18 +27,16 @@ The grouping is refreshed with the broadcast list (every 24 hours by default) an
 
 | Field | Description |
 |---|---|
-| URL | The Mirakurun server, for example `http://192.168.1.10:40772`. A trailing `/api` is accepted and removed. |
+| URL | The Mirakurun server, for example `http://192.168.1.10:40772`. A path from `/api` on (such as `/api` or `/api/status`) is accepted and removed. |
 
 ### Options
 
 | Option | Default | Description |
 |---|---|---|
-| Broadcast types | Terrestrial (GR) | Types of broadcasts that get program guide entities. Only the types your Mirakurun has are offered (GR, BS, CS, SKY). |
+| Broadcast types | Terrestrial (GR) | Types of broadcasts that get program guide entities. The types your Mirakurun has are offered (GR, BS, CS, SKY), plus selected types it does not report right now. |
 | Tuner and status polling interval | 30 s (10–300 s) | How often tuner usage and server status are polled. |
 | Program guide polling interval | 30 min (5–180 min) | How often programs are refreshed. Current and next programs switch exactly at program boundaries regardless of this interval. |
 | Broadcast list refresh interval | 24 h (1–168 h) | How often the broadcast list is refreshed and subchannels are regrouped. |
-
-Upgrading from a version with per-broadcast selection resets the broadcast types to Terrestrial (GR); select other types again in the options.
 
 Home Assistant core integrations do not offer polling interval options.
 This integration does, because Mirakurun runs on your local network and polling it is cheap.
@@ -48,6 +46,7 @@ The URL can be changed later with **Reconfigure**.
 ## Data updates
 
 The integration polls Mirakurun's REST API: `/api/status` and `/api/tuners` at the status interval, `/api/programs` for broadcasts whose device is enabled at the program interval, `/api/services` plus the main service's programs of each physical channel of the selected types at the broadcast list interval (and once when the options open, to offer the types your server has), and `/api/version` every 12 hours.
+Devices of broadcasts that are deselected in the options or vanish from Mirakurun are removed. A refresh that finds no TV services at all, or no services of a selected type that had broadcasts, is treated as failed and keeps the existing devices.
 A tuner that disappears from Mirakurun keeps its device and shows as unavailable; the device is cleaned up on the next reload, or you can delete it manually from the device page.
 It never opens a stream, so it does not occupy tuners or interfere with recordings.
 
@@ -104,7 +103,7 @@ Tested with Mirakurun 4.x. Mirakurun 3.x is not tested.
 
 - **Cannot connect**: open `http://<host>:40772/api/status` from the Home Assistant host. If it does not respond, check the address, port and firewall.
 - **A broadcast is missing**: check that its type is selected in the options and that its device is not disabled. New broadcasts appear at the next broadcast list refresh; reload the integration to refresh now.
-- **A subchannel is grouped the wrong way**: the grouping only changes when the share of simulcast programs clearly crosses the thresholds above. Reload the integration after the program guide has been updated.
+- **A subchannel is grouped the wrong way**: the grouping only changes when the share of simulcast programs clearly crosses the thresholds above. Reload the integration after the program guide has been updated. The remembered grouping is cleared only by deleting and re-adding the integration.
 - Download diagnostics from the integration page when reporting an issue.
 
 ## Removal

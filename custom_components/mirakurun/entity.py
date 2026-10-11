@@ -145,8 +145,8 @@ def async_add_broadcast_entities(
 ) -> None:
     """Add entities for current broadcasts and for broadcasts found later.
 
-    A broadcast counts as handled once the factory returns entities for it, so a
-    factory that skips a broadcast is asked again on the next refresh.
+    A broadcast counts as handled once the factory returns entities for it; as
+    a guard, one that got none is offered again on the next refresh.
     Broadcasts that disappear are forgotten, so they get entities again if they
     come back.
     """

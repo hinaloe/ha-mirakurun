@@ -42,10 +42,12 @@ class SubchannelSplit:
 
 @dataclass(frozen=True, slots=True)
 class Discovery:
-    """Broadcasts of the selected channel types and how services were grouped."""
+    """Broadcasts of the selected types and every TV channel type on the server."""
 
     broadcasts: tuple[Broadcast, ...]
     classification: Classification
+    # Every TV channel type on the server, not just the selected ones; the
+    # coordinator's guards against empty or vanished types rely on that.
     channel_types: frozenset[str]
 
 
