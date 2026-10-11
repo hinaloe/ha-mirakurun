@@ -14,13 +14,15 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import (
     AiohttpClientMocker,
 )
 
-from custom_components.mirakurun.const import DOMAIN
+from custom_components.mirakurun.const import CONF_PROGRAM_INTERVAL, DOMAIN
 
 from .common import (
+    DEFAULT_OPTIONS,
     ENTRY_ID,
     NHK,
     PROGRAMS,
     at,
+    create_entry,
     entity_id,
     mock_mirakurun,
     setup_integration,
@@ -36,6 +38,19 @@ async def _move_to(
     freezer.move_to(when)
     async_fire_time_changed(hass, when)
     await hass.async_block_till_done(wait_background_tasks=True)
+
+
+def _program_fetches(aioclient_mock: AiohttpClientMocker) -> int:
+    return sum("/api/programs" in str(call[1]) for call in aioclient_mock.mock_calls)
+
+
+async def _setup_without_boundary_polling(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Set up with a program interval that never fires on a boundary."""
+    mock_mirakurun(aioclient_mock)
+    entry = create_entry({**DEFAULT_OPTIONS, CONF_PROGRAM_INTERVAL: 180})
+    await setup_integration(hass, entry)
 
 
 async def test_program_sensors(
@@ -57,12 +72,13 @@ async def test_program_sensors(
 
 async def test_program_sensors_follow_transitions(
     hass: HomeAssistant,
-    mirakurun: AiohttpClientMocker,
-    config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
     frozen_now: FrozenDateTimeFactory,
 ) -> None:
-    await setup_integration(hass, config_entry)
+    await _setup_without_boundary_polling(hass, aioclient_mock)
+    fetches = _program_fetches(aioclient_mock)
     await _move_to(hass, frozen_now, at(12, 30))
+    assert _program_fetches(aioclient_mock) == fetches
 
     current = hass.states.get(entity_id(hass, "sensor", f"{NHK_KEY}_current_program"))
     assert current.state == "天気"
@@ -72,17 +88,18 @@ async def test_program_sensors_follow_transitions(
 
 async def test_subchannel_split(
     hass: HomeAssistant,
-    mirakurun: AiohttpClientMocker,
-    config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
     frozen_now: FrozenDateTimeFactory,
     entity_registry: er.EntityRegistry,
 ) -> None:
-    await setup_integration(hass, config_entry)
+    await _setup_without_boundary_polling(hass, aioclient_mock)
+    fetches = _program_fetches(aioclient_mock)
     split_id = entity_id(hass, "binary_sensor", f"{NHK_KEY}_subchannel_split")
     assert hass.states.get(split_id).state == STATE_OFF
     assert hass.states.get(split_id).attributes["subchannels"] == []
 
     await _move_to(hass, frozen_now, at(12, 30))
+    assert _program_fetches(aioclient_mock) == fetches
     state = hass.states.get(split_id)
     assert state.state == STATE_ON
     assert state.attributes["subchannels"] == [
@@ -95,6 +112,7 @@ async def test_subchannel_split(
 
     await _move_to(hass, frozen_now, at(13))
     assert hass.states.get(split_id).state == STATE_OFF
+    assert _program_fetches(aioclient_mock) == fetches
 
     assert (
         entity_registry.async_get_entity_id(
