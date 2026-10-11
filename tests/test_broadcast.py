@@ -1,7 +1,10 @@
 """Tests for broadcast grouping."""
 
+from datetime import timedelta
+
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+import pytest
 from pytest_homeassistant_custom_component.test_util.aiohttp import (
     AiohttpClientMocker,
 )
@@ -9,9 +12,11 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import (
 from custom_components.mirakurun.api import MirakurunClient
 from custom_components.mirakurun.broadcast import (
     Broadcast,
+    classification_from_option_map,
     classify_channel,
     default_selection,
     detect_splits,
+    discover,
     discover_broadcasts,
     distinct_sub_programs,
     group_by_channel,
@@ -156,3 +161,89 @@ def test_detect_splits() -> None:
     assert split.program.program.name == "国会中継"
     assert detect_splits(NHK_SVC, main, subs, at(13)) == []
     assert detect_splits(NHK_SVC, main, [(NHK2_SVC, ())], at(12, 30)) == []
+
+
+def _ratio_programs(total: int, shared: int) -> list[Program]:
+    """Main programs of which the first ``shared`` list NHK2 as shared."""
+    return [
+        Program.from_dict(
+            make_program(
+                NHK,
+                i + 1,
+                NOW + timedelta(minutes=10 * i),
+                10,
+                f"番組{i}",
+                shared=(1025,) if i < shared else (),
+            )
+        )
+        for i in range(total)
+    ]
+
+
+@pytest.mark.parametrize(
+    ("shared", "previous", "dependent"),
+    [
+        (10, None, True),  # 0.50, first classification
+        (9, None, False),  # 0.45, first classification
+        (8, True, True),  # 0.40, stays dependent
+        (7, True, False),  # 0.35, splits off
+        (11, False, False),  # 0.55, stays independent
+        (12, False, True),  # 0.60, joins
+    ],
+)
+def test_classify_hysteresis(
+    shared: int, previous: bool | None, dependent: bool
+) -> None:
+    prior = {} if previous is None else {NHK2_SVC.id: previous}
+    result = classify_channel(
+        [NHK_SVC, NHK2_SVC], _ratio_programs(20, shared), NOW, prior
+    )
+    if dependent:
+        assert result == [Broadcast(NHK_SVC, (NHK2_SVC,))]
+    else:
+        assert result == [Broadcast(NHK_SVC), Broadcast(NHK2_SVC)]
+
+
+def test_classify_failure_keeps_previous() -> None:
+    result = classify_channel([NHK_SVC, NHK2_SVC], None, NOW, {NHK2_SVC.id: True})
+    assert result == [Broadcast(NHK_SVC, (NHK2_SVC,))]
+
+
+async def test_discover_filters_types(
+    hass: HomeAssistant, mirakurun: AiohttpClientMocker
+) -> None:
+    client = MirakurunClient(async_get_clientsession(hass), BASE_URL)
+    result = await discover(client, NOW, ["GR"], {})
+    assert result.broadcasts == (
+        Broadcast(NHK_SVC, (NHK2_SVC,)),
+        Broadcast(MX1_SVC),
+        Broadcast(MX2_SVC),
+    )
+    assert result.classification == {NHK2_SVC.id: True, MX2_SVC.id: False}
+    assert result.channel_types == frozenset({"GR", "CS"})
+
+
+async def test_discover_without_types(
+    hass: HomeAssistant, mirakurun: AiohttpClientMocker
+) -> None:
+    client = MirakurunClient(async_get_clientsession(hass), BASE_URL)
+    result = await discover(client, NOW, [], {})
+    assert result.broadcasts == ()
+    assert result.classification == {}
+    assert result.channel_types == frozenset({"GR", "CS"})
+
+
+async def test_discover_uses_previous_on_failure(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    mock_mirakurun(aioclient_mock, fail_programs={NHK})
+    client = MirakurunClient(async_get_clientsession(hass), BASE_URL)
+    result = await discover(client, NOW, ["GR"], {NHK2_SVC.id: True})
+    assert result.broadcasts[0] == Broadcast(NHK_SVC, (NHK2_SVC,))
+    assert result.classification[NHK2_SVC.id] is True
+
+
+def test_classification_from_option_map() -> None:
+    assert classification_from_option_map(
+        {"3273601024": [3273601025], "3239123608": []}
+    ) == {3273601025: True}

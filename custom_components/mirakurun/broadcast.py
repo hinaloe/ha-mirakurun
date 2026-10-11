@@ -2,7 +2,7 @@
 
 import asyncio
 from collections import defaultdict
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -12,7 +12,13 @@ from .programs import Schedule, ScheduledProgram, build_schedule, current_progra
 
 TV_SERVICE_TYPE = 1
 SHARED_RATIO_THRESHOLD = 0.5
+# Hysteresis for services classified before: a dependent subchannel splits off
+# below SPLIT_THRESHOLD, an independent service joins at JOIN_THRESHOLD.
+SPLIT_THRESHOLD = 0.4
+JOIN_THRESHOLD = 0.6
 DISCOVERY_CONCURRENCY = 4
+
+type Classification = dict[int, bool]
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,6 +37,15 @@ class SubchannelSplit:
     program: ScheduledProgram
 
 
+@dataclass(frozen=True, slots=True)
+class Discovery:
+    """Broadcasts of the selected channel types and how services were grouped."""
+
+    broadcasts: tuple[Broadcast, ...]
+    classification: Classification
+    channel_types: frozenset[str]
+
+
 def group_by_channel(services: Sequence[Service]) -> list[list[Service]]:
     """Group TV services by physical channel, each sorted by service ID."""
     groups: dict[tuple[str, str], list[Service]] = defaultdict(list)
@@ -40,23 +55,41 @@ def group_by_channel(services: Sequence[Service]) -> list[list[Service]]:
     return [sorted(group, key=lambda s: s.service_id) for group in groups.values()]
 
 
+def _is_dependent(ratio: float, previous: bool | None) -> bool:
+    if previous is None:
+        return ratio >= SHARED_RATIO_THRESHOLD
+    if previous:
+        return ratio >= SPLIT_THRESHOLD
+    return ratio >= JOIN_THRESHOLD
+
+
 def classify_channel(
     services: Sequence[Service],
     main_programs: Sequence[Program] | None,
     now: datetime,
+    previous: Mapping[int, bool] | None = None,
 ) -> list[Broadcast]:
-    """Split one physical channel into broadcasts by how often programs are shared."""
+    """Split one physical channel into broadcasts by how often programs are shared.
+
+    ``previous`` maps service IDs to their last classification; it adds
+    hysteresis and is used as-is when the main service has no upcoming programs.
+    """
+    prior = previous or {}
     main, *others = services
     upcoming = [
         item.program for item in build_schedule(main_programs or ()) if item.end > now
     ]
-    if not upcoming:
-        return [Broadcast(service) for service in services]
     subs: list[Service] = []
     independents: list[Service] = []
     for service in others:
-        shared = sum(1 for p in upcoming if service.service_id in p.shared_service_ids)
-        if shared / len(upcoming) >= SHARED_RATIO_THRESHOLD:
+        if upcoming:
+            shared = sum(
+                1 for p in upcoming if service.service_id in p.shared_service_ids
+            )
+            dependent = _is_dependent(shared / len(upcoming), prior.get(service.id))
+        else:
+            dependent = prior.get(service.id, False)
+        if dependent:
             subs.append(service)
         else:
             independents.append(service)
@@ -84,6 +117,47 @@ async def discover_broadcasts(
         *(classify(group) for group in group_by_channel(services))
     )
     return [broadcast for result in results for broadcast in result]
+
+
+async def discover(
+    client: MirakurunClient,
+    now: datetime,
+    channel_types: Collection[str],
+    previous: Mapping[int, bool],
+) -> Discovery:
+    """Fetch services and classify the physical channels of the given types."""
+    services = await client.get_services()
+    groups = group_by_channel(services)
+    semaphore = asyncio.Semaphore(DISCOVERY_CONCURRENCY)
+
+    async def classify(group: list[Service]) -> list[Broadcast]:
+        main = group[0]
+        programs: list[Program] | None
+        async with semaphore:
+            try:
+                programs = await client.get_programs(main.network_id, main.service_id)
+            except MirakurunError:
+                programs = None
+        return classify_channel(group, programs, now, previous)
+
+    selected = [g for g in groups if g[0].channel.type in channel_types]
+    results = await asyncio.gather(*(classify(group) for group in selected))
+    classification: Classification = {}
+    for group, broadcasts in zip(selected, results, strict=True):
+        dependent = {s.id for b in broadcasts for s in b.subs}
+        classification.update({s.id: s.id in dependent for s in group[1:]})
+    return Discovery(
+        broadcasts=tuple(b for result in results for b in result),
+        classification=classification,
+        channel_types=frozenset(g[0].channel.type for g in groups),
+    )
+
+
+def classification_from_option_map(
+    option_map: Mapping[str, Sequence[int]],
+) -> Classification:
+    """Seed a classification from legacy options: listed subchannels were dependent."""
+    return {int(sid): True for subs in option_map.values() for sid in subs}
 
 
 def to_option_map(broadcasts: Sequence[Broadcast]) -> dict[str, list[int]]:
