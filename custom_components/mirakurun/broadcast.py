@@ -122,6 +122,9 @@ async def discover(
 
     async def classify(group: list[Service]) -> tuple[list[Broadcast], bool]:
         main = group[0]
+        if len(group) == 1:
+            # A lone service has nothing to classify.
+            return [Broadcast(main)], True
         channel = f"{main.channel.type} {main.channel.channel}"
         programs: list[Program] | None
         async with semaphore:

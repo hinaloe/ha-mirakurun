@@ -183,6 +183,27 @@ async def test_discover_uses_given_services(
     assert not any(url.path == "/api/services" for _, url, _, _ in mirakurun.mock_calls)
 
 
+async def test_discover_skips_single_service_channel(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    # MX alone on its channel has nothing to classify, so its missing
+    # programs neither cost a fetch nor leave the channel unmeasured.
+    mock_mirakurun(aioclient_mock, programs={**PROGRAMS, MX1: []})
+    client = MirakurunClient(async_get_clientsession(hass), BASE_URL)
+    result = await discover(
+        client, NOW, ["GR"], {}, services=[NHK_SVC, NHK2_SVC, MX1_SVC]
+    )
+    assert result.broadcasts == (Broadcast(NHK_SVC, (NHK2_SVC,)), Broadcast(MX1_SVC))
+    assert result.classification == {NHK2_SVC.id: True}
+    assert result.unmeasured == frozenset()
+    fetched = [
+        url.query.get("serviceId")
+        for _, url, _, _ in aioclient_mock.mock_calls
+        if url.path == "/api/programs"
+    ]
+    assert fetched == ["1024"]
+
+
 async def test_discover_without_types(
     hass: HomeAssistant, mirakurun: AiohttpClientMocker
 ) -> None:
