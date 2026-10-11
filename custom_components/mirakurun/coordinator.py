@@ -105,9 +105,10 @@ class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
     """Checks the broadcast list and regroups subchannels when needed.
 
     Every refresh fetches the service list; subchannels are regrouped (one
-    program fetch per physical channel) only when the TV services of the
-    selected types changed, ``REGROUP_INTERVAL`` passed since the last regroup,
-    or the last regroup left a channel unmeasured.
+    program fetch per physical channel with more than one TV service) only
+    when the TV services of the selected types changed, ``REGROUP_INTERVAL``
+    passed since the last regroup, or the last regroup left a channel
+    unmeasured within ``UNMEASURED_RETRY_WINDOW`` of the last lineup change.
     """
 
     config_entry: MirakurunConfigEntry
@@ -133,8 +134,9 @@ class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
         self._store = store
         self._classification: Classification | None = None
         self._regular_interval = self.update_interval
-        # The lineup and time of the last fully measured regroup, to skip
-        # regroups that would find nothing new.
+        # The lineup and time of the last regroup that counts as done (fully
+        # measured, or the retry window ran out), to skip regroups that would
+        # find nothing new.
         self._lineup_key: frozenset[tuple[int, str, str]] = frozenset()
         self._regrouped_at: datetime | None = None
         self._lineup_changed_at: datetime | None = None
