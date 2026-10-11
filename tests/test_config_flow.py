@@ -7,6 +7,7 @@ from homeassistant.config_entries import SOURCE_USER
 from homeassistant.const import CONF_URL
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import device_registry as dr
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import (
@@ -24,7 +25,9 @@ from custom_components.mirakurun.const import (
 from .common import (
     BASE_URL,
     DEFAULT_OPTIONS,
+    ENTRY_ID,
     create_entry,
+    load_fixture,
     mock_mirakurun,
     setup_integration,
 )
@@ -259,6 +262,12 @@ async def test_options_flow(
     }
     broadcasts = config_entry.runtime_data.services.data.broadcasts
     assert [b.main.service_id for b in broadcasts] == [55, 218]
+    assert (
+        dr.async_get(hass).async_get_device_by_identifier(
+            (DOMAIN, f"{ENTRY_ID}_broadcast_3273601024"), ENTRY_ID
+        )
+        is None
+    )
 
 
 async def test_options_flow_offers_server_types(
@@ -269,8 +278,30 @@ async def test_options_flow_offers_server_types(
     result = await hass.config_entries.options.async_init(entry.entry_id)
     schema = result["data_schema"].schema
     key = next(k for k in schema if k == CONF_CHANNEL_TYPES)
-    assert schema[key].config["options"] == ["CS", "GR"]
+    assert schema[key].config["options"] == ["GR", "CS"]
     assert key.default() == ["GR"]
+
+
+async def test_options_flow_orders_server_types(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    base = load_fixture("services.json")[0]
+    extra = [
+        {
+            **base,
+            "id": 1 + i,
+            "serviceId": 1 + i,
+            "channel": {"type": t, "channel": "1"},
+        }
+        for i, t in enumerate(["SKY", "ZZ", "BS", "AA"])
+    ]
+    mock_mirakurun(aioclient_mock, services=[*load_fixture("services.json"), *extra])
+    entry = create_entry()
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    schema = result["data_schema"].schema
+    key = next(k for k in schema if k == CONF_CHANNEL_TYPES)
+    assert schema[key].config["options"] == ["GR", "BS", "CS", "SKY", "AA", "ZZ"]
 
 
 async def test_options_flow_cannot_connect(

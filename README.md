@@ -38,6 +38,8 @@ The grouping is refreshed with the broadcast list (every 24 hours by default) an
 | Program guide polling interval | 30 min (5–180 min) | How often programs are refreshed. Current and next programs switch exactly at program boundaries regardless of this interval. |
 | Broadcast list refresh interval | 24 h (1–168 h) | How often the broadcast list is refreshed and subchannels are regrouped. |
 
+Upgrading from a version with per-broadcast selection resets the broadcast types to Terrestrial (GR); select other types again in the options.
+
 Home Assistant core integrations do not offer polling interval options.
 This integration does, because Mirakurun runs on your local network and polling it is cheap.
 
@@ -45,8 +47,8 @@ The URL can be changed later with **Reconfigure**.
 
 ## Data updates
 
-The integration polls Mirakurun's REST API: `/api/status` and `/api/tuners` at the status interval, `/api/programs` for broadcasts whose device is enabled at the program interval, `/api/services` plus the main service's programs of each physical channel of the selected types at the broadcast list interval, and `/api/version` every 12 hours.
-Devices of tuners that no longer exist are cleaned up on the next reload; you can also delete them manually from the device page.
+The integration polls Mirakurun's REST API: `/api/status` and `/api/tuners` at the status interval, `/api/programs` for broadcasts whose device is enabled at the program interval, `/api/services` plus the main service's programs of each physical channel of the selected types at the broadcast list interval (and once when the options open, to offer the types your server has), and `/api/version` every 12 hours.
+Devices of tuners that no longer exist are cleaned up on the next reload or broadcast list refresh; you can also delete them manually from the device page.
 It never opens a stream, so it does not occupy tuners or interfere with recordings.
 
 ## Examples

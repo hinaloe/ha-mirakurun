@@ -49,6 +49,16 @@ from .coordinator import MirakurunConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
+# Channel types are offered in this order, unknown ones alphabetically after.
+CHANNEL_TYPE_ORDER = ("GR", "BS", "CS", "SKY")
+
+
+def _type_order(channel_type: str) -> tuple[int, str]:
+    if channel_type in CHANNEL_TYPE_ORDER:
+        return CHANNEL_TYPE_ORDER.index(channel_type), channel_type
+    return len(CHANNEL_TYPE_ORDER), channel_type
+
+
 URL_SCHEMA = probatio.Schema(
     {
         probatio.Required(CONF_URL): TextSelector(
@@ -179,7 +189,8 @@ class MirakurunOptionsFlow(OptionsFlowWithReload):
             return self.async_abort(reason="cannot_connect")
 
         available = sorted(
-            {s.channel.type for s in services if s.type == TV_SERVICE_TYPE}
+            {s.channel.type for s in services if s.type == TV_SERVICE_TYPE},
+            key=_type_order,
         )
         options = self.config_entry.options
         selected = [

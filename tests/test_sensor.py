@@ -127,6 +127,43 @@ async def test_removed_tuner_becomes_unavailable(
     assert _state(hass, f"{ENTRY_ID}_tuner_14_state") == "free"
 
 
+async def test_tuner_entities_return_after_cleanup(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    frozen_now: FrozenDateTimeFactory,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    mock_mirakurun(aioclient_mock)
+    await setup_integration(hass, config_entry)
+
+    aioclient_mock.clear_requests()
+    mock_mirakurun(aioclient_mock, tuners=load_fixture("tuners.json")[:2])
+    await _refresh_status(hass, frozen_now)
+    # A broadcast list change runs the stale device cleanup.
+    fuji = {**load_fixture("services.json")[0], "id": 3274101056, "serviceId": 1056}
+    aioclient_mock.clear_requests()
+    mock_mirakurun(
+        aioclient_mock,
+        tuners=load_fixture("tuners.json")[:2],
+        services=[*load_fixture("services.json"), fuji],
+    )
+    await config_entry.runtime_data.services.async_refresh()
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert (
+        device_registry.async_get_device_by_identifier(
+            (DOMAIN, f"{ENTRY_ID}_tuner_15"), ENTRY_ID
+        )
+        is None
+    )
+
+    aioclient_mock.clear_requests()
+    mock_mirakurun(aioclient_mock)
+    await _refresh_status(hass, frozen_now)
+
+    assert _state(hass, f"{ENTRY_ID}_tuner_15_state") == "fault"
+
+
 async def test_status_failure_makes_entities_unavailable(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,
