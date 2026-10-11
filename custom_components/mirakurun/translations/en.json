@@ -37,7 +37,7 @@
           "channel_types": "Broadcasts of these types get program guide entities. Broadcasts added to or removed from Mirakurun are followed automatically; disable a broadcast's device to hide it.",
           "status_interval": "How often to poll tuner usage and server status.",
           "program_interval": "How often to refresh the program guide.",
-          "service_interval": "How often to check Mirakurun's service list for added or removed broadcasts. Subchannels are regrouped when the list changes and at least once a day."
+          "service_interval": "How often to check Mirakurun's service list for added or removed broadcasts. Subchannels are regrouped when the list changes, and on the first check at least 24 hours after the last regroup."
         }
       }
     },

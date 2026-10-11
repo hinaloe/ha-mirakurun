@@ -15,7 +15,7 @@ It does not record or schedule recordings; use it alongside EPGStation for that.
 Services on the same physical channel are grouped into broadcasts.
 A subchannel that shares at least half of the main service's upcoming programs (for example NHK General 2) belongs to the main broadcast; its own programs show up in the calendar as `[service name] program` and turn on the "Subchannel airing a different program" sensor.
 A subchannel that usually airs its own programs (for example TOKYO MX2) becomes a broadcast of its own.
-The grouping is redone when the broadcast list changes and at least once a day, and remembered across restarts. To keep borderline subchannels stable, a dependent subchannel only splits off below 40% shared programs, and an independent one only joins at 60% or more.
+The grouping is remembered across restarts and redone when the broadcast list changes, and on the first check at least 24 hours after the last regroup. To keep borderline subchannels stable, a dependent subchannel only splits off below 40% shared programs, and an independent one only joins at 60% or more.
 
 ## Installation
 
@@ -36,7 +36,7 @@ The grouping is redone when the broadcast list changes and at least once a day, 
 | Broadcast types | Terrestrial (GR) | Types of broadcasts that get program guide entities. The types your Mirakurun has are offered (GR, BS, CS, SKY), plus selected types it does not report right now. |
 | Tuner and status polling interval | 30 s (10–300 s) | How often tuner usage and server status are polled. |
 | Program guide polling interval | 30 min (5–180 min) | How often programs are refreshed. Current and next programs switch exactly at program boundaries regardless of this interval. |
-| Broadcast list check interval | 1 h (1–168 h) | How often Mirakurun's service list is checked for added or removed broadcasts. Subchannels are regrouped when the list changes and at least once a day. |
+| Broadcast list check interval | 1 h (1–168 h) | How often Mirakurun's service list is checked for added or removed broadcasts. Subchannels are regrouped when the list changes, and on the first check at least 24 hours after the last regroup. |
 
 Home Assistant core integrations do not offer polling interval options.
 This integration does, because Mirakurun runs on your local network and polling it is cheap.
@@ -45,7 +45,8 @@ The URL can be changed later with **Reconfigure**.
 
 ## Data updates
 
-The integration polls Mirakurun's REST API: `/api/status` and `/api/tuners` at the status interval, `/api/programs` for broadcasts whose device is enabled at the program interval, `/api/services` at the broadcast list interval (and once when the options open, to offer the types your server has), the main service's programs of each physical channel of the selected types to regroup subchannels (at setup, when the TV services of the selected types change, and otherwise once a day), and `/api/version` every 12 hours.
+The integration polls Mirakurun's REST API: `/api/status` and `/api/tuners` at the status interval, `/api/programs` for broadcasts whose device is enabled at the program interval, `/api/services` at the broadcast list interval (and once when the options open, to offer the types your server has), the main service's programs of each physical channel of the selected types to regroup subchannels (at setup, when the TV services of the selected types change, and otherwise on the first check at least 24 hours after the last regroup), and `/api/version` every 12 hours.
+A channel whose main service has no programs to measure yet (for example right after Mirakurun refilled its services) keeps its previous grouping (or, without one, shows each service as its own broadcast), and the regroup is repeated after 15 minutes until every channel could be measured.
 Devices of broadcasts that are deselected in the options or vanish from Mirakurun are removed. A refresh that finds no TV services at all, or no services of a selected type that had broadcasts, is treated as failed, keeps the existing devices and is retried after 15 minutes. When broadcasts vanish, for example while Mirakurun refills its services after restarting with a changed `channels.yml`, the broadcast list is checked again after 15 minutes instead of waiting for the full interval; returning broadcasts get their devices back with their names, areas and disabled state.
 A tuner that disappears from Mirakurun keeps its device and shows as unavailable; the device is cleaned up on the next reload, or you can delete it manually from the device page.
 It never opens a stream, so it does not occupy tuners or interfere with recordings.
