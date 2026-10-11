@@ -1,0 +1,138 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Mirakurun",
+        "description": "Enter the URL of your Mirakurun server.",
+        "data": {"url": "URL"},
+        "data_description": {"url": "For example http://192.168.1.10:40772"}
+      },
+      "reconfigure": {
+        "title": "Change the Mirakurun URL",
+        "data": {"url": "URL"},
+        "data_description": {"url": "For example http://192.168.1.10:40772"}
+      }
+    },
+    "error": {
+      "invalid_url": "Enter a URL starting with http:// or https://.",
+      "cannot_connect": "Could not connect to Mirakurun.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This Mirakurun server is already configured.",
+      "reconfigure_successful": "The Mirakurun URL was updated."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Mirakurun options",
+        "data": {
+          "broadcasts": "Broadcasts",
+          "status_interval": "Tuner and status polling interval",
+          "program_interval": "Program guide polling interval"
+        },
+        "data_description": {
+          "broadcasts": "Broadcasts to create program guide entities for. Subchannels that usually simulcast the main service are grouped with it.",
+          "status_interval": "How often to poll tuner usage and server status.",
+          "program_interval": "How often to refresh the program guide."
+        }
+      }
+    },
+    "abort": {"cannot_connect": "Could not connect to Mirakurun."}
+  },
+  "entity": {
+    "sensor": {
+      "tuners_in_use": {"name": "Tuners in use"},
+      "tuners_free": {"name": "Free tuners"},
+      "streams": {"name": "Tuner streams"},
+      "stored_events": {"name": "Stored programs"},
+      "tuner_respawns": {"name": "Tuner respawns"},
+      "uncaught_exceptions": {"name": "Uncaught exceptions"},
+      "unhandled_rejections": {"name": "Unhandled rejections"},
+      "buffer_overflows": {"name": "Buffer overflows"},
+      "decoder_respawns": {"name": "Decoder respawns"},
+      "tuner_state": {
+        "name": "State",
+        "state": {
+          "fault": "Fault",
+          "disabled": "Disabled",
+          "in_use": "In use",
+          "free": "Free"
+        }
+      },
+      "tuner_channel": {"name": "Channel"},
+      "tuner_user": {
+        "name": "User",
+        "state_attributes": {"users": {"name": "Users"}}
+      },
+      "current_program": {
+        "name": "Current program",
+        "state_attributes": {
+          "start": {"name": "Start"},
+          "end": {"name": "End"},
+          "description": {"name": "Description"},
+          "genre": {
+            "name": "Genre",
+            "state": {
+              "news": "News",
+              "sports": "Sports",
+              "information": "Information",
+              "drama": "Drama",
+              "music": "Music",
+              "variety": "Variety",
+              "movie": "Movie",
+              "anime": "Anime",
+              "documentary": "Documentary",
+              "theater": "Theater",
+              "hobby": "Hobby and education",
+              "welfare": "Welfare",
+              "extension": "Extension",
+              "other": "Other"
+            }
+          }
+        }
+      },
+      "next_program": {
+        "name": "Next program",
+        "state_attributes": {
+          "start": {"name": "Start"},
+          "genre": {
+            "name": "Genre",
+            "state": {
+              "news": "News",
+              "sports": "Sports",
+              "information": "Information",
+              "drama": "Drama",
+              "music": "Music",
+              "variety": "Variety",
+              "movie": "Movie",
+              "anime": "Anime",
+              "documentary": "Documentary",
+              "theater": "Theater",
+              "hobby": "Hobby and education",
+              "welfare": "Welfare",
+              "extension": "Extension",
+              "other": "Other"
+            }
+          }
+        }
+      }
+    },
+    "binary_sensor": {
+      "epg_gathering": {"name": "Gathering program guide"},
+      "tuner_fault": {"name": "Fault"},
+      "subchannel_split": {
+        "name": "Subchannel airing a different program",
+        "state_attributes": {"subchannels": {"name": "Subchannels"}}
+      }
+    },
+    "calendar": {
+      "schedule": {"name": "Schedule"}
+    }
+  },
+  "exceptions": {
+    "cannot_connect": {"message": "Could not connect to Mirakurun: {error}"},
+    "update_failed": {"message": "Error communicating with Mirakurun: {error}"}
+  }
+}
