@@ -177,3 +177,4 @@ class MirakurunRuntimeData:
     status: StatusCoordinator
     programs: ProgramCoordinator
     version: VersionCoordinator
+    server_device_id: str = ""

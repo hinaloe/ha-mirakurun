@@ -5,6 +5,7 @@ from datetime import timedelta
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -13,6 +14,8 @@ from pytest_homeassistant_custom_component.common import (
 from pytest_homeassistant_custom_component.test_util.aiohttp import (
     AiohttpClientMocker,
 )
+
+from custom_components.mirakurun.const import DOMAIN
 
 from .common import ENTRY_ID, entity_id, load_fixture, mock_mirakurun, setup_integration
 
@@ -139,3 +142,21 @@ async def test_status_failure_makes_entities_unavailable(
 
     assert _state(hass, f"{ENTRY_ID}_server_tuners_in_use") == STATE_UNAVAILABLE
     assert _state(hass, f"{ENTRY_ID}_tuner_12_state") == STATE_UNAVAILABLE
+
+
+async def test_tuner_device_linked_to_server(
+    hass: HomeAssistant,
+    mirakurun: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    await setup_integration(hass, config_entry)
+    server = device_registry.async_get_device_by_identifier(
+        (DOMAIN, ENTRY_ID), ENTRY_ID
+    )
+    tuner = device_registry.async_get_device_by_identifier(
+        (DOMAIN, f"{ENTRY_ID}_tuner_12"), ENTRY_ID
+    )
+    assert server is not None
+    assert tuner is not None
+    assert tuner.via_device_id == server.id

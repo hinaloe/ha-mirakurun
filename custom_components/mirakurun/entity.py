@@ -53,7 +53,7 @@ def tuner_device_info(entry: MirakurunConfigEntry, tuner: Tuner) -> DeviceInfo:
         name=tuner.name,
         manufacturer=MANUFACTURER,
         model=f"Tuner ({'/'.join(tuner.types)})",
-        via_device=(DOMAIN, server_identifier(entry)),  # type: ignore[typeddict-unknown-key]
+        via_device_id=entry.runtime_data.server_device_id,
     )
 
 
@@ -67,7 +67,7 @@ def broadcast_device_info(
         name=main.name,
         manufacturer=MANUFACTURER,
         model=f"{main.channel.type} {main.channel.channel}",
-        via_device=(DOMAIN, server_identifier(entry)),  # type: ignore[typeddict-unknown-key]
+        via_device_id=entry.runtime_data.server_device_id,
     )
 
 

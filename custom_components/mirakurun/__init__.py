@@ -3,6 +3,7 @@
 from homeassistant.const import CONF_URL, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import MirakurunClient, MirakurunError
@@ -15,6 +16,7 @@ from .coordinator import (
     StatusCoordinator,
     VersionCoordinator,
 )
+from .entity import server_device_info
 
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
 
@@ -51,6 +53,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: MirakurunConfigEntry) ->
     entry.runtime_data = MirakurunRuntimeData(
         client, broadcasts, status, programs, version
     )
+    server_device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id, **server_device_info(entry)
+    )
+    entry.runtime_data.server_device_id = server_device.id
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
