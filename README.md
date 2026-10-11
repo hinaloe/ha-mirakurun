@@ -99,7 +99,7 @@ Tested with Mirakurun 4.x. Mirakurun 3.x is not tested.
 
 ## Troubleshooting
 
-- **Cannot connect**: open `http://<host>:40772/api/version` from the Home Assistant host. If it does not respond, check the address, port and firewall.
+- **Cannot connect**: open `http://<host>:40772/api/status` from the Home Assistant host. If it does not respond, check the address, port and firewall.
 - **A broadcast is missing**: open the options; the list is rebuilt from Mirakurun's current services each time.
 - **A subchannel is grouped the wrong way**: open and save the options to re-run the grouping.
 - Download diagnostics from the integration page when reporting an issue.

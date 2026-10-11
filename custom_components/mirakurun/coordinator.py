@@ -116,12 +116,21 @@ class ProgramCoordinator(DataUpdateCoordinator[dict[int, BroadcastSchedule]]):
             *(self.client.get_programs(s.network_id, s.service_id) for s in services),
             return_exceptions=True,
         )
+        for result in results:
+            if isinstance(result, BaseException) and not isinstance(
+                result, MirakurunError
+            ):
+                raise result
+        errors = [r for r in results if isinstance(r, MirakurunError)]
+        if services and len(errors) == len(services):
+            # The coordinator reports the outage itself; per-service messages
+            # would repeat on every refresh while everything fails.
+            raise _update_failed(errors[0]) from errors[0]
+
         schedules: dict[int, Schedule] = {}
-        errors: list[MirakurunError] = []
         failing: set[int] = set()
         for service, result in zip(services, results, strict=True):
             if isinstance(result, MirakurunError):
-                errors.append(result)
                 failing.add(service.id)
                 if service.id not in self._failing:
                     _LOGGER.warning(
@@ -131,14 +140,10 @@ class ProgramCoordinator(DataUpdateCoordinator[dict[int, BroadcastSchedule]]):
                     )
                 if service.id in self._schedules:
                     schedules[service.id] = self._schedules[service.id]
-            elif isinstance(result, BaseException):
-                raise result
-            else:
+            elif isinstance(result, list):
                 schedules[service.id] = build_schedule(result)
                 if service.id in self._failing:
                     _LOGGER.info("Fetching programs for %s recovered", service.name)
-        if services and len(errors) == len(services):
-            raise _update_failed(errors[0]) from errors[0]
         self._failing = failing
         self._schedules = schedules
         return {

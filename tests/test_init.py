@@ -202,6 +202,34 @@ async def test_program_failure_and_recovery_are_logged_once(
     )
 
 
+async def test_total_program_failure_logs_no_per_service_messages(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    mock_mirakurun(aioclient_mock)
+    await setup_integration(hass, config_entry)
+    programs = config_entry.runtime_data.programs
+    caplog.set_level(logging.INFO, logger="custom_components.mirakurun")
+
+    aioclient_mock.clear_requests()
+    mock_mirakurun(aioclient_mock, fail_programs=set(PROGRAMS))
+    await programs.async_refresh()
+    await programs.async_refresh()
+    aioclient_mock.clear_requests()
+    mock_mirakurun(aioclient_mock)
+    await programs.async_refresh()
+
+    # The coordinator itself reports the outage; per-service messages would
+    # repeat on every refresh while everything fails.
+    assert not [
+        r
+        for r in caplog.records
+        if r.name == LOGGER and " programs for " in r.getMessage()
+    ]
+
+
 async def test_version_retry_interval(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,
