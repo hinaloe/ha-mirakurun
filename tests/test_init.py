@@ -2,12 +2,16 @@
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import (
     AiohttpClientMocker,
 )
 
-from .common import NHK, NHK2, PROGRAMS, mock_mirakurun, setup_integration
+from custom_components.mirakurun import async_remove_config_entry_device
+from custom_components.mirakurun.const import DOMAIN
+
+from .common import ENTRY_ID, NHK, NHK2, PROGRAMS, mock_mirakurun, setup_integration
 
 
 async def test_setup_and_unload(
@@ -102,3 +106,43 @@ async def test_setup_with_service_without_programs(
     mock_mirakurun(aioclient_mock, programs={**PROGRAMS, NHK: []})
     await setup_integration(hass, config_entry)
     assert config_entry.runtime_data.programs.data[3273601024].main == ()
+
+
+async def test_stale_broadcast_device_removed(
+    hass: HomeAssistant,
+    mirakurun: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    config_entry.add_to_hass(hass)
+    stale = device_registry.async_get_or_create(
+        config_entry_id=config_entry.entry_id,
+        identifiers={(DOMAIN, f"{ENTRY_ID}_broadcast_999")},
+    )
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert device_registry.async_get(stale.id) is None
+    assert device_registry.async_get_device_by_identifier(
+        (DOMAIN, f"{ENTRY_ID}_broadcast_3273601024"), config_entry.entry_id
+    )
+
+
+async def test_remove_config_entry_device(
+    hass: HomeAssistant,
+    mirakurun: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    await setup_integration(hass, config_entry)
+    tuner = device_registry.async_get_device_by_identifier(
+        (DOMAIN, f"{ENTRY_ID}_tuner_14"), config_entry.entry_id
+    )
+    assert tuner is not None
+    assert not await async_remove_config_entry_device(hass, config_entry, tuner)
+
+    gone = device_registry.async_get_or_create(
+        config_entry_id=config_entry.entry_id,
+        identifiers={(DOMAIN, f"{ENTRY_ID}_tuner_99")},
+    )
+    assert await async_remove_config_entry_device(hass, config_entry, gone)
