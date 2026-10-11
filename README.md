@@ -114,6 +114,9 @@ Go to **Settings → Devices & services → Mirakurun**, open the menu and choos
 
 ## License
 
-Apache License 2.0. See [LICENSE](LICENSE).
+Copyright 2026 hinaloe
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full text.
 
 The brand images in `custom_components/mirakurun/brand/` are not covered by the Apache License. They are PNG renderings of the [Mirakurun icon](https://github.com/Chinachu/Mirakurun/blob/563a9e703061866c38847f4e5395447afa51ca72/src/ui/icon.svg) (© 2020 kanreisa), trimmed and resized, and are licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+
