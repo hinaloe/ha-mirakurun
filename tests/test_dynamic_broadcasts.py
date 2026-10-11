@@ -219,6 +219,64 @@ async def test_split_sensor_added_when_subchannel_appears(
     )
 
 
+# NHK main programs that share nothing with NHK2, so NHK2 splits off.
+NHK_ALONE = {
+    **PROGRAMS,
+    (32736, 1024): [
+        {k: v for k, v in p.items() if k != "relatedItems"}
+        for p in PROGRAMS[(32736, 1024)]
+    ],
+}
+NHK_SPLIT_ID = f"{NHK_KEY}_subchannel_split"
+
+
+async def test_split_sensor_follows_regrouping(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    mock_mirakurun(aioclient_mock)
+    await setup_integration(hass, config_entry)
+    split_entity = entity_id(hass, "binary_sensor", NHK_SPLIT_ID)
+
+    aioclient_mock.clear_requests()
+    mock_mirakurun(aioclient_mock, programs=NHK_ALONE)
+    await _refresh_services(hass, config_entry)
+
+    assert (
+        entity_registry.async_get_entity_id("binary_sensor", DOMAIN, NHK_SPLIT_ID)
+        is None
+    )
+    assert hass.states.get(split_entity) is None
+
+    aioclient_mock.clear_requests()
+    mock_mirakurun(aioclient_mock)
+    await _refresh_services(hass, config_entry)
+
+    assert hass.states.get(entity_id(hass, "binary_sensor", NHK_SPLIT_ID)) is not None
+
+
+async def test_leftover_split_sensor_removed_at_setup(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    config_entry.add_to_hass(hass)
+    entity_registry.async_get_or_create(
+        "binary_sensor", DOMAIN, NHK_SPLIT_ID, config_entry=config_entry
+    )
+    mock_mirakurun(aioclient_mock, services=_services(drop={3273601025}))
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert (
+        entity_registry.async_get_entity_id("binary_sensor", DOMAIN, NHK_SPLIT_ID)
+        is None
+    )
+
+
 async def test_program_fetches_are_bounded(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:

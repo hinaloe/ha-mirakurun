@@ -3,9 +3,13 @@
 from typing import Any
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.components.binary_sensor.const import (
+    DOMAIN as BINARY_SENSOR_DOMAIN,
+)
 from homeassistant.components.binary_sensor.const import BinarySensorDeviceClass
 from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
@@ -15,12 +19,14 @@ from .entity import (
     MirakurunBroadcastEntity,
     MirakurunServerEntity,
     MirakurunTunerEntity,
-    async_add_broadcast_entities,
     async_add_tuner_entities,
 )
+from .identifiers import broadcast_identifier
 from .models import Tuner
 
 PARALLEL_UPDATES = 0
+
+SPLIT_KEY = "subchannel_split"
 
 
 async def async_setup_entry(
@@ -37,16 +43,51 @@ async def async_setup_entry(
         lambda tuner: [MirakurunTunerFaultBinarySensor(status, entry, tuner)],
         async_add_entities,
     )
+    _async_sync_split_sensors(hass, entry, async_add_entities)
+
+
+def _async_sync_split_sensors(
+    hass: HomeAssistant,
+    entry: MirakurunConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
+) -> None:
+    """Keep one split sensor per broadcast that has subchannels.
+
+    Subchannels can join or split off when the broadcast list is regrouped, so
+    the sensors are added and removed as the grouping changes.
+    """
+    services = entry.runtime_data.services
     programs = entry.runtime_data.programs
-    async_add_broadcast_entities(
-        entry,
-        lambda broadcast: (
-            [MirakurunSubchannelSplitBinarySensor(programs, entry, broadcast)]
-            if broadcast.subs
-            else []
-        ),
-        async_add_entities,
-    )
+    registry = er.async_get(hass)
+    added: set[int] = set()
+
+    @callback
+    def sync() -> None:
+        wanted = {b.main.id: b for b in services.data.broadcasts if b.subs}
+        wanted_ids = {
+            f"{broadcast_identifier(entry, main_id)}_{SPLIT_KEY}" for main_id in wanted
+        }
+        for registry_entry in er.async_entries_for_config_entry(
+            registry, entry.entry_id
+        ):
+            if (
+                registry_entry.domain == BINARY_SENSOR_DOMAIN
+                and registry_entry.unique_id.endswith(f"_{SPLIT_KEY}")
+                and registry_entry.unique_id not in wanted_ids
+            ):
+                registry.async_remove(registry_entry.entity_id)
+        added.intersection_update(wanted)
+        new = [
+            MirakurunSubchannelSplitBinarySensor(programs, entry, broadcast)
+            for main_id, broadcast in wanted.items()
+            if main_id not in added
+        ]
+        added.update(wanted)
+        if new:
+            async_add_entities(new)
+
+    sync()
+    entry.async_on_unload(services.async_add_listener(sync))
 
 
 class MirakurunGatheringBinarySensor(MirakurunServerEntity, BinarySensorEntity):
@@ -100,7 +141,7 @@ class MirakurunSubchannelSplitBinarySensor(
         entry: MirakurunConfigEntry,
         broadcast: Broadcast,
     ) -> None:
-        super().__init__(coordinator, entry, broadcast, "subchannel_split")
+        super().__init__(coordinator, entry, broadcast, SPLIT_KEY)
 
     def _splits(self) -> list[SubchannelSplit]:
         schedule = self.schedule

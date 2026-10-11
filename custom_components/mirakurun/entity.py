@@ -146,9 +146,9 @@ def async_add_broadcast_entities(
     """Add entities for current broadcasts and for broadcasts found later.
 
     A broadcast counts as handled once the factory returns entities for it, so a
-    factory that skips a broadcast (one without subchannels, say) is asked again
-    on the next refresh. Broadcasts that disappear are forgotten, so they get
-    entities again if they come back.
+    factory that skips a broadcast is asked again on the next refresh.
+    Broadcasts that disappear are forgotten, so they get entities again if they
+    come back.
     """
     services = entry.runtime_data.services
     handled: set[int] = set()
