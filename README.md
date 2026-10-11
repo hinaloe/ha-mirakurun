@@ -8,14 +8,14 @@ It does not record or schedule recordings; use it alongside EPGStation for that.
 
 - **Server**: tuners in use, free tuners, tuner streams, tuner respawns, error counters, whether the program guide is being gathered, and a Mirakurun update entity.
 - **Tuners**: one device per tuner with its state (`free`, `in_use`, `disabled`, `fault`), the channel being received, the highest priority user, and a fault sensor. Tuners added later appear without restarting.
-- **Broadcasts**: one device per selected broadcast with the current and next program, a calendar of the program guide, and a sensor that turns on while a subchannel airs a different program.
+- **Broadcasts**: one device per broadcast of the selected types, with the current and next program, a calendar of the program guide, and a sensor that turns on while a subchannel airs a different program. Broadcasts added to or removed from Mirakurun are followed automatically; disable a broadcast's device to hide it.
 
 ### Multichannel broadcasts
 
 Services on the same physical channel are grouped into broadcasts.
 A subchannel that shares at least half of the main service's upcoming programs (for example NHK General 2) belongs to the main broadcast; its own programs show up in the calendar as `[service name] program` and turn on the "Subchannel airing a different program" sensor.
 A subchannel that usually airs its own programs (for example TOKYO MX2) becomes a broadcast of its own.
-The grouping is decided when the integration is set up and each time the options are opened.
+The grouping is refreshed with the broadcast list (every 24 hours by default) and remembered across restarts. To keep borderline subchannels stable, a dependent subchannel only splits off below 40% shared programs, and an independent one only joins at 60% or more.
 
 ## Installation
 
@@ -33,9 +33,10 @@ The grouping is decided when the integration is set up and each time the options
 
 | Option | Default | Description |
 |---|---|---|
-| Broadcasts | All terrestrial broadcasts | Broadcasts that get program guide entities. |
+| Broadcast types | Terrestrial (GR) | Types of broadcasts that get program guide entities. Only the types your Mirakurun has are offered (GR, BS, CS, SKY). |
 | Tuner and status polling interval | 30 s (10–300 s) | How often tuner usage and server status are polled. |
 | Program guide polling interval | 30 min (5–180 min) | How often programs are refreshed. Current and next programs switch exactly at program boundaries regardless of this interval. |
+| Broadcast list refresh interval | 24 h (1–168 h) | How often the broadcast list is refreshed and subchannels are regrouped. |
 
 Home Assistant core integrations do not offer polling interval options.
 This integration does, because Mirakurun runs on your local network and polling it is cheap.
@@ -44,7 +45,7 @@ The URL can be changed later with **Reconfigure**.
 
 ## Data updates
 
-The integration polls Mirakurun's REST API: `/api/status` and `/api/tuners` at the status interval, `/api/programs` for the selected broadcasts at the program interval, `/api/services` at setup and when the options open, and `/api/version` every 12 hours.
+The integration polls Mirakurun's REST API: `/api/status` and `/api/tuners` at the status interval, `/api/programs` for broadcasts whose device is enabled at the program interval, `/api/services` plus the main service's programs of each physical channel of the selected types at the broadcast list interval, and `/api/version` every 12 hours.
 Devices of tuners that no longer exist are cleaned up on the next reload; you can also delete them manually from the device page.
 It never opens a stream, so it does not occupy tuners or interfere with recordings.
 
@@ -100,8 +101,8 @@ Tested with Mirakurun 4.x. Mirakurun 3.x is not tested.
 ## Troubleshooting
 
 - **Cannot connect**: open `http://<host>:40772/api/status` from the Home Assistant host. If it does not respond, check the address, port and firewall.
-- **A broadcast is missing**: open the options; the list is rebuilt from Mirakurun's current services each time.
-- **A subchannel is grouped the wrong way**: open and save the options to re-run the grouping.
+- **A broadcast is missing**: check that its type is selected in the options and that its device is not disabled. New broadcasts appear at the next broadcast list refresh; reload the integration to refresh now.
+- **A subchannel is grouped the wrong way**: the grouping only changes when the share of simulcast programs clearly crosses the thresholds above. Reload the integration after the program guide has been updated.
 - Download diagnostics from the integration page when reporting an issue.
 
 ## Removal
