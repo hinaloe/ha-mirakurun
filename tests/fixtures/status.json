@@ -1,0 +1,16 @@
+{
+  "time": 1791658441818,
+  "version": "4.0.0-beta.18",
+  "process": {"arch": "x64", "platform": "linux", "pid": 1},
+  "epg": {"gatheringNetworks": [4, 7], "storedEvents": 26849},
+  "rpcCount": 1,
+  "streamCount": {"tunerDevice": 2, "tsFilter": 2, "decoder": 0},
+  "errorCount": {
+    "uncaughtException": 0,
+    "unhandledRejection": 0,
+    "bufferOverflow": 3,
+    "tunerDeviceRespawn": 1747,
+    "decoderRespawn": 0
+  },
+  "timerAccuracy": {"last": 593.288}
+}

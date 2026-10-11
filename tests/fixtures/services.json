@@ -1,0 +1,9 @@
+[
+  {"id": 3273601024, "serviceId": 1024, "networkId": 32736, "name": "ＮＨＫ総合１・東京", "type": 1, "logoId": 0, "remoteControlKeyId": 1, "epgReady": true, "epgUpdatedAt": 1791656694129, "channel": {"type": "GR", "channel": "27"}, "hasLogoData": true},
+  {"id": 3273601025, "serviceId": 1025, "networkId": 32736, "name": "ＮＨＫ総合２・東京", "type": 1, "remoteControlKeyId": 1, "channel": {"type": "GR", "channel": "27"}, "hasLogoData": true},
+  {"id": 3273601408, "serviceId": 1408, "networkId": 32736, "name": "ＮＨＫ携帯Ｇ・東京", "type": 192, "remoteControlKeyId": 1, "channel": {"type": "GR", "channel": "27"}, "hasLogoData": false},
+  {"id": 3239123608, "serviceId": 23608, "networkId": 32391, "name": "ＴＯＫＹＯ　ＭＸ１", "type": 1, "remoteControlKeyId": 9, "channel": {"type": "GR", "channel": "16"}, "hasLogoData": true},
+  {"id": 3239123610, "serviceId": 23610, "networkId": 32391, "name": "ＴＯＫＹＯ　ＭＸ２", "type": 1, "remoteControlKeyId": 9, "channel": {"type": "GR", "channel": "16"}, "hasLogoData": true},
+  {"id": 700055, "serviceId": 55, "networkId": 7, "name": "ショップチャンネル", "type": 1, "channel": {"type": "CS", "channel": "CS8"}, "hasLogoData": false},
+  {"id": 700218, "serviceId": 218, "networkId": 7, "name": "東映チャンネル", "type": 1, "channel": {"type": "CS", "channel": "CS8"}, "hasLogoData": false}
+]

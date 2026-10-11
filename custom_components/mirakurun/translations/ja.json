@@ -1,0 +1,158 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Mirakurun に接続",
+        "description": "Mirakurun サーバーの URL を入力してください。",
+        "data": {"url": "URL"},
+        "data_description": {"url": "例: http://192.168.1.10:40772"}
+      },
+      "reconfigure": {
+        "title": "Mirakurun の URL を変更",
+        "data": {"url": "URL"},
+        "data_description": {"url": "例: http://192.168.1.10:40772"}
+      }
+    },
+    "error": {
+      "invalid_url": "http:// または https:// で始まる URL を入力してください。",
+      "cannot_connect": "Mirakurun に接続できませんでした。",
+      "unknown": "予期しないエラーが発生しました。"
+    },
+    "abort": {
+      "already_configured": "この Mirakurun サーバーは設定済みです。",
+      "reconfigure_successful": "Mirakurun の URL を更新しました。"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Mirakurun のオプション",
+        "data": {
+          "channel_types": "放送の種別",
+          "status_interval": "チューナーと状態の取得間隔",
+          "program_interval": "番組表の取得間隔",
+          "service_interval": "放送一覧の確認間隔"
+        },
+        "data_description": {
+          "channel_types": "この種別の放送に番組情報のエンティティを作ります。Mirakurun で増えた放送や消えた放送には自動で追従します。要らない放送はデバイスを無効化して隠してください。",
+          "status_interval": "チューナーの使用状況とサーバーの状態を取得する間隔です。",
+          "program_interval": "番組表を取得し直す間隔です。",
+          "service_interval": "Mirakurun のサービス一覧を確認し、増えた放送や消えた放送を見つける間隔です。サブチャンネルのまとめ方は、一覧が変わったときと、前回の判定から 24 時間以上たった最初の確認で判定し直します。"
+        }
+      }
+    },
+    "abort": {
+      "cannot_connect": "Mirakurun に接続できませんでした。",
+      "no_services": "Mirakurun からテレビのサービスが返されませんでした。チャンネルスキャンが終わってから開き直してください。"
+    }
+  },
+  "selector": {
+    "channel_types": {
+      "options": {
+        "gr": "地上波（GR）",
+        "bs": "BS",
+        "cs": "110度 CS（CS）",
+        "sky": "スカパー！プレミアムサービス（SKY）"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "tuners_in_use": {"name": "使用中のチューナー"},
+      "tuners_free": {"name": "空きチューナー"},
+      "streams": {"name": "チューナーのストリーム数"},
+      "stored_events": {"name": "保持番組数"},
+      "tuner_respawns": {"name": "チューナーの再起動回数"},
+      "uncaught_exceptions": {"name": "未捕捉の例外"},
+      "unhandled_rejections": {"name": "未処理の Promise 拒否"},
+      "buffer_overflows": {"name": "バッファーあふれ"},
+      "decoder_respawns": {"name": "デコーダーの再起動回数"},
+      "tuner_state": {
+        "name": "状態",
+        "state": {
+          "fault": "故障",
+          "disabled": "無効",
+          "in_use": "使用中",
+          "free": "空き"
+        }
+      },
+      "tuner_channel": {"name": "チャンネル"},
+      "tuner_user": {
+        "name": "利用者",
+        "state_attributes": {"users": {"name": "利用者一覧"}}
+      },
+      "current_program": {
+        "name": "現在の番組",
+        "state_attributes": {
+          "start": {"name": "開始"},
+          "end": {"name": "終了"},
+          "description": {"name": "説明"},
+          "genre_detail": {"name": "ジャンル詳細"},
+          "genre": {
+            "name": "ジャンル",
+            "state": {
+              "news": "ニュース／報道",
+              "sports": "スポーツ",
+              "information": "情報／ワイドショー",
+              "drama": "ドラマ",
+              "music": "音楽",
+              "variety": "バラエティ",
+              "movie": "映画",
+              "anime": "アニメ／特撮",
+              "documentary": "ドキュメンタリー／教養",
+              "theater": "劇場／公演",
+              "hobby": "趣味／教育",
+              "welfare": "福祉",
+              "extension": "拡張",
+              "other": "その他"
+            }
+          }
+        }
+      },
+      "next_program": {
+        "name": "次の番組",
+        "state_attributes": {
+          "start": {"name": "開始"},
+          "genre": {
+            "name": "ジャンル",
+            "state": {
+              "news": "ニュース／報道",
+              "sports": "スポーツ",
+              "information": "情報／ワイドショー",
+              "drama": "ドラマ",
+              "music": "音楽",
+              "variety": "バラエティ",
+              "movie": "映画",
+              "anime": "アニメ／特撮",
+              "documentary": "ドキュメンタリー／教養",
+              "theater": "劇場／公演",
+              "hobby": "趣味／教育",
+              "welfare": "福祉",
+              "extension": "拡張",
+              "other": "その他"
+            }
+          }
+        }
+      }
+    },
+    "binary_sensor": {
+      "epg_gathering": {"name": "番組表取得中"},
+      "tuner_fault": {"name": "故障"},
+      "subchannel_split": {
+        "name": "サブチャンネル別番組中",
+        "state_attributes": {"subchannels": {"name": "サブチャンネル"}}
+      }
+    },
+    "calendar": {
+      "schedule": {"name": "番組表"}
+    }
+  },
+  "exceptions": {
+    "cannot_connect": {"message": "Mirakurun に接続できませんでした: {error}"},
+    "update_failed": {"message": "Mirakurun との通信でエラーが発生しました: {error}"},
+    "no_services": {"message": "Mirakurun からテレビのサービスが返されませんでした。"},
+    "selected_types_missing": {
+      "message": "選んだ種別のサービスが Mirakurun にありません: {types}"
+    }
+  }
+}

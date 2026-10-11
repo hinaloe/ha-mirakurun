@@ -1,0 +1,39 @@
+[project]
+name = "ha-mirakurun"
+version = "0.1.0"
+description = "Mirakurun integration for Home Assistant"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.14.2"
+
+[dependency-groups]
+dev = [
+  "pytest-homeassistant-custom-component==0.13.371",
+  "pytest-cov",
+  "ruff",
+  "mypy",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py314"
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+# Line length is left to the formatter. Japanese broadcaster names use
+# full-width characters that the ambiguous-unicode rules would flag.
+ignore = ["E501", "RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.isort]
+force-sort-within-sections = true
+known-first-party = ["custom_components"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+packages = ["custom_components.mirakurun"]
