@@ -33,6 +33,7 @@ from .const import (
     PROGRAM_FETCH_CONCURRENCY,
     REGROUP_INTERVAL,
     SERVICE_RECHECK_INTERVAL,
+    UNMEASURED_RETRY_WINDOW,
     VERSION_INTERVAL,
     VERSION_RETRY_INTERVAL,
 )
@@ -136,6 +137,7 @@ class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
         # regroups that would find nothing new.
         self._lineup_key: frozenset[tuple[int, str, str]] = frozenset()
         self._regrouped_at: datetime | None = None
+        self._lineup_changed_at: datetime | None = None
         # Broadcasts known before the first refresh (their devices), so a
         # broadcast missing at setup also triggers an early recheck.
         self.known_broadcast_ids: set[int] = set()
@@ -171,6 +173,8 @@ class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
                 )
         now = dt_util.utcnow()
         key = lineup_key(services, channel_types)
+        if key != self._lineup_key or self._lineup_changed_at is None:
+            self._lineup_changed_at = now
         if (
             self.data is not None
             and key == self._lineup_key
@@ -186,8 +190,12 @@ class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
         )
         self._lineup_key = key
         # A regroup that had to guess for some channel (typical right after
-        # Mirakurun refilled its services) is redone on the next refresh.
-        self._regrouped_at = None if discovery.unmeasured else now
+        # Mirakurun refilled its services) is redone soon, but only for a
+        # while after the lineup changed; then the daily regroup takes over.
+        retry = bool(discovery.unmeasured) and (
+            now - self._lineup_changed_at < UNMEASURED_RETRY_WINDOW
+        )
+        self._regrouped_at = None if retry else now
         merged = {**self._classification, **discovery.classification}
         if merged != self._classification:
             self._classification = merged
@@ -200,7 +208,7 @@ class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
         current_ids = {b.main.id for b in discovery.broadcasts}
         self.update_interval = (
             SERVICE_RECHECK_INTERVAL
-            if previous_ids - current_ids or discovery.unmeasured
+            if retry or previous_ids - current_ids
             else self._regular_interval
         )
         return discovery

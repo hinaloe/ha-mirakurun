@@ -36,6 +36,10 @@ SERVICE_RECHECK_INTERVAL: Final = timedelta(minutes=15)
 # Regroup subchannels at least this often even if the service list is
 # unchanged; Mirakurun itself updates its services once a day.
 REGROUP_INTERVAL: Final = timedelta(hours=24)
+# Regroups that leave a channel unmeasured are retried at
+# SERVICE_RECHECK_INTERVAL for this long after the lineup last changed; a
+# channel that stays without programs then waits for the daily regroup.
+UNMEASURED_RETRY_WINDOW: Final = timedelta(hours=2)
 
 RELEASE_URL: Final = "https://github.com/Chinachu/Mirakurun/releases"
 

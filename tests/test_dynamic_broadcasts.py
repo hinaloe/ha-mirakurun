@@ -27,8 +27,10 @@ from custom_components.mirakurun.const import (
     PROGRAM_FETCH_CONCURRENCY,
     REGROUP_INTERVAL,
     SERVICE_RECHECK_INTERVAL,
+    UNMEASURED_RETRY_WINDOW,
 )
 from custom_components.mirakurun.models import Program
+from custom_components.mirakurun.store import ClassificationStore
 
 from .common import (
     DEFAULT_OPTIONS,
@@ -246,13 +248,106 @@ async def test_unmeasured_channel_is_regrouped_soon(
     with _discover_spy() as spy:
         await _refresh_services(hass, config_entry)
     assert spy.call_count == 1
-    assert services.update_interval == timedelta(hours=DEFAULT_SERVICE_INTERVAL)
+    assert services.update_interval == REGULAR_INTERVAL
+    stored = await ClassificationStore(hass, ENTRY_ID).async_load()
+    assert stored[3239123610] is False
 
     aioclient_mock.clear_requests()
     mock_mirakurun(aioclient_mock)
     with _discover_spy() as spy:
         await _refresh_services(hass, config_entry)
     assert spy.call_count == 0
+
+
+REGULAR_INTERVAL = timedelta(hours=DEFAULT_SERVICE_INTERVAL)
+MX_UNMEASURED = {**PROGRAMS, MX1: []}
+
+
+async def _refresh_counting(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    entry: MockConfigEntry,
+    **mock: Any,
+) -> int:
+    """Refresh the services and return how many regroups it ran."""
+    aioclient_mock.clear_requests()
+    mock_mirakurun(aioclient_mock, **mock)
+    with _discover_spy() as spy:
+        await _refresh_services(hass, entry)
+    return spy.call_count
+
+
+async def test_unmeasured_channel_keeps_retrying_within_window(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    frozen_now: FrozenDateTimeFactory,
+) -> None:
+    mock_mirakurun(aioclient_mock, programs=MX_UNMEASURED)
+    await setup_integration(hass, config_entry)
+    services = config_entry.runtime_data.services
+
+    frozen_now.tick(SERVICE_RECHECK_INTERVAL)
+    regroups = await _refresh_counting(
+        hass, aioclient_mock, config_entry, programs=MX_UNMEASURED
+    )
+    assert regroups == 1
+    assert services.update_interval == SERVICE_RECHECK_INTERVAL
+
+
+async def test_unmeasured_retry_ends_after_window(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    frozen_now: FrozenDateTimeFactory,
+) -> None:
+    mock_mirakurun(aioclient_mock, programs=MX_UNMEASURED)
+    await setup_integration(hass, config_entry)
+    services = config_entry.runtime_data.services
+
+    # A channel that stays unmeasured falls back to the daily regroup.
+    frozen_now.tick(UNMEASURED_RETRY_WINDOW)
+    regroups = await _refresh_counting(
+        hass, aioclient_mock, config_entry, programs=MX_UNMEASURED
+    )
+    assert regroups == 1
+    assert services.update_interval == REGULAR_INTERVAL
+
+    frozen_now.tick(REGROUP_INTERVAL - timedelta(minutes=1))
+    regroups = await _refresh_counting(
+        hass, aioclient_mock, config_entry, programs=MX_UNMEASURED
+    )
+    assert regroups == 0
+
+    frozen_now.tick(timedelta(minutes=1))
+    regroups = await _refresh_counting(
+        hass, aioclient_mock, config_entry, programs=MX_UNMEASURED
+    )
+    assert regroups == 1
+
+
+async def test_lineup_change_restarts_unmeasured_retry(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    frozen_now: FrozenDateTimeFactory,
+) -> None:
+    mock_mirakurun(aioclient_mock, programs=MX_UNMEASURED)
+    await setup_integration(hass, config_entry)
+    services = config_entry.runtime_data.services
+    frozen_now.tick(UNMEASURED_RETRY_WINDOW)
+    await _refresh_counting(hass, aioclient_mock, config_entry, programs=MX_UNMEASURED)
+    assert services.update_interval == REGULAR_INTERVAL
+
+    regroups = await _refresh_counting(
+        hass,
+        aioclient_mock,
+        config_entry,
+        services=_services(add=[FUJI_SERVICE]),
+        programs={**FUJI_PROGRAMS, MX1: []},
+    )
+    assert regroups == 1
+    assert services.update_interval == SERVICE_RECHECK_INTERVAL
 
 
 async def test_new_broadcast_added_without_reload(
