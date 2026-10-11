@@ -272,6 +272,7 @@ class MirakurunCurrentProgramSensor(MirakurunBroadcastEntity, SensorEntity):
             "end": item.end.isoformat(),
             "description": item.program.description,
             "genre": genre_key(item.program.genre_lv1),
+            "genre_detail": item.program.genre_lv2,
         }
 
 

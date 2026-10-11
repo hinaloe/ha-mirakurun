@@ -72,6 +72,7 @@
           "start": {"name": "Start"},
           "end": {"name": "End"},
           "description": {"name": "Description"},
+          "genre_detail": {"name": "Genre detail"},
           "genre": {
             "name": "Genre",
             "state": {

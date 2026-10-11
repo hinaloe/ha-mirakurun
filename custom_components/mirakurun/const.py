@@ -18,5 +18,6 @@ DEFAULT_PROGRAM_INTERVAL: Final = 30
 MIN_PROGRAM_INTERVAL: Final = 5
 MAX_PROGRAM_INTERVAL: Final = 180
 VERSION_INTERVAL: Final = timedelta(hours=12)
+VERSION_RETRY_INTERVAL: Final = timedelta(minutes=30)
 
 RELEASE_URL: Final = "https://github.com/Chinachu/Mirakurun/releases"

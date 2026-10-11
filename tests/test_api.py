@@ -89,6 +89,13 @@ async def test_get_services(
     assert services[5].remote_control_key_id is None
 
 
+@pytest.mark.parametrize(
+    "payload", [{"current": "4.0.0"}, {"current": "4.0.0", "latest": ""}]
+)
+def test_version_without_latest(payload: dict[str, str]) -> None:
+    assert Version.from_dict(payload) == Version("4.0.0", None)
+
+
 async def test_get_programs(
     hass: HomeAssistant, mirakurun: AiohttpClientMocker
 ) -> None:
@@ -103,6 +110,7 @@ async def test_get_programs(
     assert first.name == "ニュース"
     assert first.description == "ニュース description"
     assert first.genre_lv1 == 0
+    assert first.genre_lv2 == 1
     assert first.shared_service_ids == frozenset({1024, 1025})
 
 
@@ -121,6 +129,7 @@ async def test_program_with_unknown_duration(
     assert not program.has_known_duration
     assert program.description is None
     assert program.genre_lv1 is None
+    assert program.genre_lv2 is None
     assert program.shared_service_ids == frozenset()
 
 

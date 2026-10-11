@@ -155,6 +155,7 @@ class Program:
     name: str | None
     description: str | None
     genre_lv1: int | None
+    genre_lv2: int | None
     shared_service_ids: frozenset[int]
 
     @property
@@ -182,5 +183,6 @@ class Program:
             name=data.get("name") or None,
             description=data.get("description") or None,
             genre_lv1=int(genres[0]["lv1"]) if genres else None,
+            genre_lv2=int(genres[0]["lv2"]) if genres else None,
             shared_service_ids=shared,
         )

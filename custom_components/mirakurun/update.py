@@ -42,6 +42,4 @@ class MirakurunUpdate(MirakurunEntity[VersionCoordinator], UpdateEntity):
     @property
     def latest_version(self) -> str | None:
         data = self.coordinator.data
-        if data is None:
-            return None
-        return data.latest or data.current
+        return data.latest if data is not None else None

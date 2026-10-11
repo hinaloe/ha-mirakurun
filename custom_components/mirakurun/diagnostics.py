@@ -9,8 +9,16 @@ from homeassistant.core import HomeAssistant
 
 from .const import CONF_BROADCASTS, CONF_PROGRAM_INTERVAL, CONF_STATUS_INTERVAL
 from .coordinator import MirakurunConfigEntry
+from .models import Tuner
 
 TO_REDACT = {CONF_URL}
+REDACTED = "**REDACTED**"
+
+
+def _tuner_diagnostics(tuner: Tuner) -> dict[str, Any]:
+    result = asdict(tuner)
+    result["users"] = [{**user, "id": REDACTED} for user in result["users"]]
+    return result
 
 
 async def async_get_config_entry_diagnostics(
@@ -33,7 +41,7 @@ async def async_get_config_entry_diagnostics(
             },
         },
         "status": asdict(status.status),
-        "tuners": [asdict(tuner) for tuner in status.tuners],
+        "tuners": [_tuner_diagnostics(tuner) for tuner in status.tuners],
         "version": asdict(version) if version is not None else None,
         "programs": {
             str(main_id): {

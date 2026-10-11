@@ -44,7 +44,8 @@ The URL can be changed later with **Reconfigure**.
 
 ## Data updates
 
-The integration polls Mirakurun's REST API: `/api/status` and `/api/tuners` at the status interval, `/api/programs` for the selected broadcasts at the program interval, and `/api/version` every 12 hours.
+The integration polls Mirakurun's REST API: `/api/status` and `/api/tuners` at the status interval, `/api/programs` for the selected broadcasts at the program interval, `/api/services` at setup and when the options open, and `/api/version` every 12 hours.
+Devices of tuners that no longer exist are cleaned up on the next reload; you can also delete them manually from the device page.
 It never opens a stream, so it does not occupy tuners or interfere with recordings.
 
 ## Examples
@@ -94,7 +95,7 @@ Tested with Mirakurun 4.x. Mirakurun 3.x is not tested.
 - Recording and reservations are out of scope; use EPGStation.
 - Mirakurun has no authentication. Connecting through an authenticating reverse proxy is not supported.
 - The update entity only reports new releases; it cannot install them.
-- If Mirakurun cannot reach npm, the update entity becomes unavailable. Everything else keeps working.
+- If Mirakurun cannot reach npm, the version request fails: the update entity becomes unavailable and is retried every 30 minutes. If Mirakurun returns no latest version, the latest version is shown as unknown. Everything else keeps working.
 
 ## Troubleshooting
 

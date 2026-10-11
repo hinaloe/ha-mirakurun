@@ -55,6 +55,7 @@ def make_program(
     *,
     shared: Iterable[int] = (),
     genre: int | None = None,
+    genre_lv2: int = 0,
 ) -> dict[str, Any]:
     """Build a Mirakurun program payload. ``minutes=None`` means unknown duration."""
     network_id, service_id = service
@@ -70,7 +71,7 @@ def make_program(
         "description": f"{name} description",
     }
     if genre is not None:
-        item["genres"] = [{"lv1": genre, "lv2": 0, "un1": 15, "un2": 15}]
+        item["genres"] = [{"lv1": genre, "lv2": genre_lv2, "un1": 15, "un2": 15}]
     shared_ids = list(shared)
     if shared_ids:
         item["relatedItems"] = [
@@ -82,8 +83,10 @@ def make_program(
 
 PROGRAMS: dict[tuple[int, int], list[dict[str, Any]]] = {
     NHK: [
-        make_program(NHK, 1, at(11), 90, "ニュース", shared=(1024, 1025), genre=0),
-        make_program(NHK, 2, at(12, 30), 30, "天気", shared=(1024, 1025), genre=0),
+        make_program(
+            NHK, 1, at(11), 90, "ニュース", shared=(1024, 1025), genre=0, genre_lv2=1
+        ),
+        make_program(NHK, 2, at(12, 30), 30, "天気", shared=(1024,), genre=0),
         make_program(NHK, 3, at(13), 60, "ドキュメント", shared=(1024, 1025), genre=8),
     ],
     NHK2: [

@@ -72,6 +72,7 @@
           "start": {"name": "開始"},
           "end": {"name": "終了"},
           "description": {"name": "説明"},
+          "genre_detail": {"name": "ジャンル詳細"},
           "genre": {
             "name": "ジャンル",
             "state": {

@@ -76,7 +76,7 @@ async def test_user_flow_cannot_connect_then_recovers(
     aioclient_mock: AiohttpClientMocker,
     mock_setup_entry: AsyncMock,
 ) -> None:
-    mock_mirakurun(aioclient_mock, fail_version=True)
+    mock_mirakurun(aioclient_mock, fail_status=True)
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": SOURCE_USER}
     )
@@ -87,6 +87,22 @@ async def test_user_flow_cannot_connect_then_recovers(
 
     aioclient_mock.clear_requests()
     mock_mirakurun(aioclient_mock)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_URL: BASE_URL}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+
+async def test_user_flow_without_version_endpoint(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    mock_setup_entry: AsyncMock,
+) -> None:
+    # /api/version needs npm on the server and must not gate the connection check
+    mock_mirakurun(aioclient_mock, fail_version=True)
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {CONF_URL: BASE_URL}
     )
@@ -115,7 +131,7 @@ async def test_user_flow_unknown_error(
         DOMAIN, context={"source": SOURCE_USER}
     )
     with patch(
-        "custom_components.mirakurun.config_flow.MirakurunClient.get_version",
+        "custom_components.mirakurun.config_flow.MirakurunClient.get_status",
         side_effect=RuntimeError,
     ):
         result = await hass.config_entries.flow.async_configure(
@@ -159,6 +175,22 @@ async def test_reconfigure(
     assert config_entry.title == "Mirakurun (other.local)"
 
 
+async def test_reconfigure_without_version_endpoint(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    mock_setup_entry: AsyncMock,
+) -> None:
+    mock_mirakurun(aioclient_mock, base_url=OTHER_URL, fail_version=True)
+    config_entry.add_to_hass(hass)
+    result = await config_entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_URL: OTHER_URL}
+    )
+    assert result["reason"] == "reconfigure_successful"
+    assert config_entry.data == {CONF_URL: OTHER_URL}
+
+
 async def test_reconfigure_same_url(
     hass: HomeAssistant,
     mirakurun: AiohttpClientMocker,
@@ -194,7 +226,7 @@ async def test_reconfigure_errors(
     config_entry: MockConfigEntry,
     mock_setup_entry: AsyncMock,
 ) -> None:
-    mock_mirakurun(aioclient_mock, base_url=OTHER_URL, fail_version=True)
+    mock_mirakurun(aioclient_mock, base_url=OTHER_URL, fail_status=True)
     config_entry.add_to_hass(hass)
     result = await config_entry.start_reconfigure_flow(hass)
 

@@ -6,7 +6,7 @@ rules:
   appropriate-polling: done
   brands:
     status: todo
-    comment: Submit icons to home-assistant/brands before requesting HACS default inclusion.
+    comment: Add brand/icon.png (and logo) under custom_components/mirakurun/brand/.
   common-modules: done
   config-flow-test-coverage: done
   config-flow: done

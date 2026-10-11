@@ -10,7 +10,7 @@ from homeassistant.util import dt as dt_util
 from .broadcast import Broadcast, distinct_sub_programs
 from .coordinator import MirakurunConfigEntry, ProgramCoordinator
 from .entity import MirakurunBroadcastEntity
-from .programs import ScheduledProgram
+from .programs import ScheduledProgram, current_program
 
 PARALLEL_UPDATES = 0
 
@@ -73,6 +73,9 @@ class MirakurunCalendar(MirakurunBroadcastEntity, CalendarEntity):
     @property
     def event(self) -> CalendarEvent | None:
         now = dt_util.utcnow()
+        schedule = self.schedule
+        if schedule is not None and (main := current_program(schedule.main, now)):
+            return _to_event(main, None)
         return next(
             (
                 _to_event(item, prefix)

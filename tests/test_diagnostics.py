@@ -27,5 +27,9 @@ async def test_diagnostics(
     ]
     assert result["status"]["version"] == "4.0.0-beta.18"
     assert len(result["tuners"]) == 3
+    users = [user for tuner in result["tuners"] for user in tuner["users"]]
+    assert users
+    assert {user["id"] for user in users} == {"**REDACTED**"}
+    assert all("priority" in user and "channel_name" in user for user in users)
     assert result["version"] == {"current": "4.0.0-beta.18", "latest": "4.1.5"}
     assert result["programs"]["3273601024"] == {"main": 3, "subs": {"3273601025": 3}}

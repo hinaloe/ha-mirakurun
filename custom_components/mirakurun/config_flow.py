@@ -93,7 +93,8 @@ class MirakurunConfigFlow(ConfigFlow, domain=DOMAIN):
     async def _async_check(self, url: str) -> dict[str, str]:
         client = MirakurunClient(async_get_clientsession(self.hass), url)
         try:
-            await client.get_version()
+            # /api/version shells out to npm and can fail where /api/status works
+            await client.get_status()
         except MirakurunError:
             return {"base": "cannot_connect"}
         except Exception:

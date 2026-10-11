@@ -20,10 +20,12 @@ from .common import (
     DEFAULT_OPTIONS,
     ENTRY_ID,
     NHK,
+    NHK2,
     PROGRAMS,
     at,
     create_entry,
     entity_id,
+    make_program,
     mock_mirakurun,
     setup_integration,
 )
@@ -64,6 +66,7 @@ async def test_program_sensors(
     assert current.attributes["end"] == at(12, 30).isoformat()
     assert current.attributes["description"] == "ニュース description"
     assert current.attributes["genre"] == "news"
+    assert current.attributes["genre_detail"] == 1
 
     upcoming = hass.states.get(entity_id(hass, "sensor", f"{NHK_KEY}_next_program"))
     assert upcoming.state == "天気"
@@ -163,6 +166,23 @@ async def test_calendar(
         return_response=True,
     )
     assert [e["summary"] for e in response[calendar_id]["events"]] == ["ドキュメント"]
+
+
+async def test_calendar_current_event_prefers_main_service(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+) -> None:
+    sub_special = make_program(NHK2, 30, at(10, 30), 120, "副音声特番", genre=0)
+    mock_mirakurun(
+        aioclient_mock, programs={**PROGRAMS, NHK2: [sub_special, *PROGRAMS[NHK2][1:]]}
+    )
+    await setup_integration(hass, config_entry)
+    calendar_id = entity_id(hass, "calendar", f"{NHK_KEY}_schedule")
+
+    # The subchannel program started before the main one but must not win
+    state = hass.states.get(calendar_id)
+    assert state.attributes["message"] == "ニュース"
 
 
 async def test_broadcast_without_programs(

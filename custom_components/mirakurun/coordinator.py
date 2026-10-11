@@ -18,6 +18,7 @@ from .const import (
     DEFAULT_STATUS_INTERVAL,
     DOMAIN,
     VERSION_INTERVAL,
+    VERSION_RETRY_INTERVAL,
 )
 from .models import Service, Status, Tuner, Version
 from .programs import Schedule, build_schedule
@@ -107,6 +108,7 @@ class ProgramCoordinator(DataUpdateCoordinator[dict[int, BroadcastSchedule]]):
         self.client = client
         self.broadcasts = broadcasts
         self._schedules: dict[int, Schedule] = {}
+        self._failing: set[int] = set()
 
     async def _async_update_data(self) -> dict[int, BroadcastSchedule]:
         services = [s for b in self.broadcasts for s in (b.main, *b.subs)]
@@ -116,23 +118,28 @@ class ProgramCoordinator(DataUpdateCoordinator[dict[int, BroadcastSchedule]]):
         )
         schedules: dict[int, Schedule] = {}
         errors: list[MirakurunError] = []
+        failing: set[int] = set()
         for service, result in zip(services, results, strict=True):
             if isinstance(result, MirakurunError):
                 errors.append(result)
+                failing.add(service.id)
+                if service.id not in self._failing:
+                    _LOGGER.warning(
+                        "Failed to fetch programs for %s, keeping previous data: %s",
+                        service.name,
+                        result,
+                    )
                 if service.id in self._schedules:
                     schedules[service.id] = self._schedules[service.id]
             elif isinstance(result, BaseException):
                 raise result
             else:
                 schedules[service.id] = build_schedule(result)
+                if service.id in self._failing:
+                    _LOGGER.info("Fetching programs for %s recovered", service.name)
         if services and len(errors) == len(services):
             raise _update_failed(errors[0]) from errors[0]
-        if errors:
-            _LOGGER.debug(
-                "Failed to fetch programs for %d of %d services",
-                len(errors),
-                len(services),
-            )
+        self._failing = failing
         self._schedules = schedules
         return {
             b.main.id: BroadcastSchedule(
@@ -163,9 +170,12 @@ class VersionCoordinator(DataUpdateCoordinator[Version]):
 
     async def _async_update_data(self) -> Version:
         try:
-            return await self.client.get_version()
+            version = await self.client.get_version()
         except MirakurunError as err:
+            self.update_interval = VERSION_RETRY_INTERVAL
             raise _update_failed(err) from err
+        self.update_interval = VERSION_INTERVAL
+        return version
 
 
 @dataclass(slots=True)
