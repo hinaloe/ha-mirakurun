@@ -267,3 +267,28 @@ async def test_tuner_device_linked_to_server(
     assert server is not None
     assert tuner is not None
     assert tuner.via_device_id == server.id
+
+
+async def test_broadcasts_are_service_devices(
+    hass: HomeAssistant,
+    mirakurun: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    await setup_integration(hass, config_entry)
+    broadcast = device_registry.async_get_device_by_identifier(
+        (DOMAIN, f"{ENTRY_ID}_broadcast_3273601024"), ENTRY_ID
+    )
+    server = device_registry.async_get_device_by_identifier(
+        (DOMAIN, ENTRY_ID), ENTRY_ID
+    )
+    tuner = device_registry.async_get_device_by_identifier(
+        (DOMAIN, f"{ENTRY_ID}_tuner_12"), ENTRY_ID
+    )
+    assert broadcast is not None
+    assert server is not None
+    assert tuner is not None
+    # Broadcasts are not physical devices; HA lists services separately.
+    assert broadcast.entry_type is dr.DeviceEntryType.SERVICE
+    assert server.entry_type is None
+    assert tuner.entry_type is None

@@ -6,7 +6,7 @@ from typing import Any
 
 from homeassistant.const import CONF_URL
 from homeassistant.core import CALLBACK_TYPE, callback
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_track_point_in_utc_time
@@ -62,6 +62,8 @@ def broadcast_device_info(
         name=main.name,
         manufacturer=MANUFACTURER,
         model=f"{main.channel.type} {main.channel.channel}",
+        # A broadcast is not a physical device; HA lists services separately.
+        entry_type=DeviceEntryType.SERVICE,
         via_device_id=entry.runtime_data.server_device_id,
     )
 
