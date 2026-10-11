@@ -9,7 +9,7 @@ from homeassistant.util import dt as dt_util
 
 from .broadcast import Broadcast, distinct_sub_programs
 from .coordinator import MirakurunConfigEntry, ProgramCoordinator
-from .entity import MirakurunBroadcastEntity
+from .entity import MirakurunBroadcastEntity, async_add_broadcast_entities
 from .programs import ScheduledProgram, current_program
 
 PARALLEL_UPDATES = 0
@@ -22,9 +22,10 @@ async def async_setup_entry(
 ) -> None:
     """Set up program guide calendars."""
     programs = entry.runtime_data.programs
-    async_add_entities(
-        MirakurunCalendar(programs, entry, broadcast)
-        for broadcast in entry.runtime_data.services.data.broadcasts
+    async_add_broadcast_entities(
+        entry,
+        lambda broadcast: [MirakurunCalendar(programs, entry, broadcast)],
+        async_add_entities,
     )
 
 

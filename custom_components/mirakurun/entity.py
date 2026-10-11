@@ -134,6 +134,40 @@ def async_add_tuner_entities(
     entry.async_on_unload(coordinator.async_add_listener(add_new_tuners))
 
 
+def async_add_broadcast_entities(
+    entry: MirakurunConfigEntry,
+    factory: Callable[[Broadcast], Iterable[Entity]],
+    async_add_entities: AddConfigEntryEntitiesCallback,
+) -> None:
+    """Add entities for current broadcasts and for broadcasts found later.
+
+    A broadcast counts as handled once the factory returns entities for it, so a
+    factory that skips a broadcast (one without subchannels, say) is asked again
+    on the next refresh. Broadcasts that disappear are forgotten, so they get
+    entities again if they come back.
+    """
+    services = entry.runtime_data.services
+    handled: set[int] = set()
+
+    @callback
+    def add_new_broadcasts() -> None:
+        broadcasts = services.data.broadcasts
+        handled.intersection_update(b.main.id for b in broadcasts)
+        entities: list[Entity] = []
+        for broadcast in broadcasts:
+            if broadcast.main.id in handled:
+                continue
+            created = list(factory(broadcast))
+            if created:
+                handled.add(broadcast.main.id)
+                entities.extend(created)
+        if entities:
+            async_add_entities(entities)
+
+    add_new_broadcasts()
+    entry.async_on_unload(services.async_add_listener(add_new_broadcasts))
+
+
 class MirakurunBroadcastEntity(MirakurunEntity[ProgramCoordinator]):
     """An entity of a broadcast device that refreshes at program boundaries."""
 
@@ -154,6 +188,11 @@ class MirakurunBroadcastEntity(MirakurunEntity[ProgramCoordinator]):
     def schedule(self) -> BroadcastSchedule | None:
         """Return the latest schedules for this broadcast."""
         return self.coordinator.data.get(self.broadcast.main.id)
+
+    @property
+    def available(self) -> bool:
+        """Return whether programs are known for this broadcast."""
+        return super().available and self.schedule is not None
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()

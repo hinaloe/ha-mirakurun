@@ -15,6 +15,7 @@ from .entity import (
     MirakurunBroadcastEntity,
     MirakurunServerEntity,
     MirakurunTunerEntity,
+    async_add_broadcast_entities,
     async_add_tuner_entities,
 )
 from .models import Tuner
@@ -37,10 +38,14 @@ async def async_setup_entry(
         async_add_entities,
     )
     programs = entry.runtime_data.programs
-    async_add_entities(
-        MirakurunSubchannelSplitBinarySensor(programs, entry, broadcast)
-        for broadcast in entry.runtime_data.services.data.broadcasts
-        if broadcast.subs
+    async_add_broadcast_entities(
+        entry,
+        lambda broadcast: (
+            [MirakurunSubchannelSplitBinarySensor(programs, entry, broadcast)]
+            if broadcast.subs
+            else []
+        ),
+        async_add_entities,
     )
 
 

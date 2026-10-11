@@ -7,6 +7,7 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -25,6 +26,7 @@ from .const import (
     VERSION_INTERVAL,
     VERSION_RETRY_INTERVAL,
 )
+from .identifiers import broadcast_identifier
 from .models import Service, Status, Tuner, Version
 from .programs import Schedule, build_schedule
 from .store import ClassificationStore
@@ -165,8 +167,21 @@ class ProgramCoordinator(DataUpdateCoordinator[dict[int, BroadcastSchedule]]):
         self._schedules: dict[int, Schedule] = {}
         self._failing: set[int] = set()
 
+    def _target_broadcasts(self) -> list[Broadcast]:
+        """Return broadcasts whose device the user has not disabled."""
+        registry = dr.async_get(self.hass)
+        targets: list[Broadcast] = []
+        for broadcast in self.services.data.broadcasts:
+            device = registry.async_get_device_by_identifier(
+                (DOMAIN, broadcast_identifier(self.config_entry, broadcast.main.id)),
+                self.config_entry.entry_id,
+            )
+            if device is None or not device.disabled:
+                targets.append(broadcast)
+        return targets
+
     async def _async_update_data(self) -> dict[int, BroadcastSchedule]:
-        broadcasts = self.services.data.broadcasts
+        broadcasts = self._target_broadcasts()
         targets = [s for b in broadcasts for s in (b.main, *b.subs)]
         results = await asyncio.gather(
             *(self.client.get_programs(s.network_id, s.service_id) for s in targets),

@@ -26,6 +26,7 @@ from .entity import (
     MirakurunBroadcastEntity,
     MirakurunServerEntity,
     MirakurunTunerEntity,
+    async_add_broadcast_entities,
     async_add_tuner_entities,
 )
 from .models import Tuner
@@ -181,13 +182,13 @@ async def async_setup_entry(
         async_add_entities,
     )
     programs = entry.runtime_data.programs
-    async_add_entities(
-        entity
-        for broadcast in entry.runtime_data.services.data.broadcasts
-        for entity in (
+    async_add_broadcast_entities(
+        entry,
+        lambda broadcast: [
             MirakurunCurrentProgramSensor(programs, entry, broadcast),
             MirakurunNextProgramSensor(programs, entry, broadcast),
-        )
+        ],
+        async_add_entities,
     )
 
 

@@ -59,6 +59,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: MirakurunConfigEntry) ->
     )
     entry.runtime_data.server_device_id = server_device.id
     _async_remove_stale_devices(hass, entry)
+
+    @callback
+    def _async_broadcasts_changed() -> None:
+        _async_remove_stale_devices(hass, entry)
+        entry.async_create_background_task(
+            hass, programs.async_request_refresh(), f"{DOMAIN}_program_refresh"
+        )
+
+    entry.async_on_unload(services.async_add_listener(_async_broadcasts_changed))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
@@ -119,6 +128,4 @@ def _async_remove_stale_devices(
     registry = dr.async_get(hass)
     for device in dr.async_entries_for_config_entry(registry, entry.entry_id):
         if not device.identifiers & current:
-            registry.async_update_device(
-                device.id, remove_config_entry_id=entry.entry_id
-            )
+            registry.async_remove_device(device.id)
