@@ -46,10 +46,10 @@
   "selector": {
     "channel_types": {
       "options": {
-        "GR": "地上波（GR）",
-        "BS": "BS",
-        "CS": "110度 CS（CS）",
-        "SKY": "スカパー！プレミアムサービス（SKY）"
+        "gr": "地上波（GR）",
+        "bs": "BS",
+        "cs": "110度 CS（CS）",
+        "sky": "スカパー！プレミアムサービス（SKY）"
       }
     }
   },

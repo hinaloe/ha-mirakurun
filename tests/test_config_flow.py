@@ -246,7 +246,7 @@ async def test_options_flow(
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
         {
-            CONF_CHANNEL_TYPES: ["CS"],
+            CONF_CHANNEL_TYPES: ["cs"],
             CONF_STATUS_INTERVAL: 60,
             CONF_PROGRAM_INTERVAL: 10,
             CONF_SERVICE_INTERVAL: 6,
@@ -278,8 +278,12 @@ async def test_options_flow_offers_server_types(
     result = await hass.config_entries.options.async_init(entry.entry_id)
     schema = result["data_schema"].schema
     key = next(k for k in schema if k == CONF_CHANNEL_TYPES)
-    assert schema[key].config["options"] == ["GR", "CS"]
-    assert key.default() == ["GR"]
+    # Option values double as translation keys, which must be lowercase.
+    assert schema[key].config["options"] == [
+        {"value": "gr", "label": "GR"},
+        {"value": "cs", "label": "CS"},
+    ]
+    assert key.default() == ["gr"]
 
 
 async def test_options_flow_orders_server_types(
@@ -301,7 +305,8 @@ async def test_options_flow_orders_server_types(
     result = await hass.config_entries.options.async_init(entry.entry_id)
     schema = result["data_schema"].schema
     key = next(k for k in schema if k == CONF_CHANNEL_TYPES)
-    assert schema[key].config["options"] == ["GR", "BS", "CS", "SKY", "AA", "ZZ"]
+    values = [option["value"] for option in schema[key].config["options"]]
+    assert values == ["gr", "bs", "cs", "sky", "aa", "zz"]
 
 
 async def test_options_flow_cannot_connect(

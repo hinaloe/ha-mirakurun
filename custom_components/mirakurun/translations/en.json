@@ -46,10 +46,10 @@
   "selector": {
     "channel_types": {
       "options": {
-        "GR": "Terrestrial (GR)",
-        "BS": "BS",
-        "CS": "110° CS (CS)",
-        "SKY": "SKY PerfecTV! Premium Service (SKY)"
+        "gr": "Terrestrial (GR)",
+        "bs": "BS",
+        "cs": "110° CS (CS)",
+        "sky": "SKY PerfecTV! Premium Service (SKY)"
       }
     }
   },
