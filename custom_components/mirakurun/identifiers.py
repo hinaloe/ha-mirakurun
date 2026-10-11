@@ -23,3 +23,11 @@ def broadcast_identifier(entry: ConfigEntry[Any], main_id: int) -> str:
 def is_broadcast_identifier(entry: ConfigEntry[Any], identifier: str) -> bool:
     """Return whether a device identifier belongs to a broadcast."""
     return identifier.startswith(f"{entry.entry_id}_broadcast_")
+
+
+def broadcast_main_id(entry: ConfigEntry[Any], identifier: str) -> int | None:
+    """Return the main service ID of a broadcast device identifier."""
+    if not is_broadcast_identifier(entry, identifier):
+        return None
+    suffix = identifier.removeprefix(f"{entry.entry_id}_broadcast_")
+    return int(suffix) if suffix.isdecimal() else None

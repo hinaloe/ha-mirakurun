@@ -26,6 +26,7 @@ from .coordinator import (
 from .entity import server_device_info
 from .identifiers import (
     broadcast_identifier,
+    broadcast_main_id,
     is_broadcast_identifier,
     server_identifier,
     tuner_identifier,
@@ -46,6 +47,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: MirakurunConfigEntry) ->
     services = ServiceCoordinator(
         hass, entry, client, ClassificationStore(hass, entry.entry_id)
     )
+    services.known_broadcast_ids = {
+        main_id
+        for device in dr.async_entries_for_config_entry(
+            dr.async_get(hass), entry.entry_id
+        )
+        for domain, identifier in device.identifiers
+        if domain == DOMAIN
+        and (main_id := broadcast_main_id(entry, identifier)) is not None
+    }
     status = StatusCoordinator(hass, entry, client)
     programs = ProgramCoordinator(hass, entry, client, services)
     version = VersionCoordinator(hass, entry, client)

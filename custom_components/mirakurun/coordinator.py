@@ -24,6 +24,7 @@ from .const import (
     DEFAULT_STATUS_INTERVAL,
     DOMAIN,
     PROGRAM_FETCH_CONCURRENCY,
+    SERVICE_RECHECK_INTERVAL,
     VERSION_INTERVAL,
     VERSION_RETRY_INTERVAL,
 )
@@ -116,6 +117,10 @@ class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
         self.client = client
         self._store = store
         self._classification: Classification | None = None
+        self._regular_interval = self.update_interval
+        # Broadcasts known before the first refresh (their devices), so a
+        # broadcast missing at setup also triggers an early recheck.
+        self.known_broadcast_ids: set[int] = set()
 
     async def _async_update_data(self) -> Discovery:
         if self._classification is None:
@@ -148,6 +153,17 @@ class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
         if merged != self._classification:
             self._classification = merged
             await self._store.async_save(merged)
+        previous_ids = (
+            {b.main.id for b in self.data.broadcasts}
+            if self.data is not None
+            else self.known_broadcast_ids
+        )
+        current_ids = {b.main.id for b in discovery.broadcasts}
+        self.update_interval = (
+            SERVICE_RECHECK_INTERVAL
+            if previous_ids - current_ids
+            else self._regular_interval
+        )
         return discovery
 
 

@@ -18,6 +18,7 @@ from custom_components.mirakurun.const import (
     CONF_PROGRAM_INTERVAL,
     CONF_STATUS_INTERVAL,
     DOMAIN,
+    SERVICE_RECHECK_INTERVAL,
     VERSION_INTERVAL,
     VERSION_RETRY_INTERVAL,
 )
@@ -467,3 +468,68 @@ async def test_remove_entry_removes_classification(
     await hass.config_entries.async_remove(config_entry.entry_id)
     await hass.async_block_till_done()
     assert await ClassificationStore(hass, ENTRY_ID).async_load() == {}
+
+
+DEFAULT_SERVICE_UPDATE = timedelta(hours=24)
+
+
+async def test_vanished_broadcast_is_rechecked_soon(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+) -> None:
+    mock_mirakurun(aioclient_mock)
+    await setup_integration(hass, config_entry)
+    services = config_entry.runtime_data.services
+    assert services.update_interval == DEFAULT_SERVICE_UPDATE
+
+    # A broadcast missing from one refresh (e.g. while Mirakurun refills its
+    # services) is looked for again soon instead of after a full interval.
+    without_mx2 = [s for s in load_fixture("services.json") if s["id"] != 3239123610]
+    aioclient_mock.clear_requests()
+    mock_mirakurun(aioclient_mock, services=without_mx2)
+    await services.async_refresh()
+    assert services.update_interval == SERVICE_RECHECK_INTERVAL
+
+    aioclient_mock.clear_requests()
+    mock_mirakurun(aioclient_mock)
+    await services.async_refresh()
+    assert services.update_interval == DEFAULT_SERVICE_UPDATE
+
+
+async def test_broadcast_missing_at_setup_is_rechecked_soon(
+    hass: HomeAssistant,
+    mirakurun: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    config_entry.add_to_hass(hass)
+    device_registry.async_get_or_create(
+        config_entry_id=config_entry.entry_id,
+        identifiers={(DOMAIN, f"{ENTRY_ID}_broadcast_999")},
+    )
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert config_entry.runtime_data.services.update_interval == (
+        SERVICE_RECHECK_INTERVAL
+    )
+
+
+async def test_setup_without_missing_broadcasts_keeps_interval(
+    hass: HomeAssistant,
+    mirakurun: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    config_entry.add_to_hass(hass)
+    device_registry.async_get_or_create(
+        config_entry_id=config_entry.entry_id,
+        identifiers={(DOMAIN, f"{ENTRY_ID}_broadcast_3273601024")},
+    )
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert config_entry.runtime_data.services.update_interval == (
+        DEFAULT_SERVICE_UPDATE
+    )

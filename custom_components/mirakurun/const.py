@@ -27,6 +27,9 @@ MAX_SERVICE_INTERVAL: Final = 168
 PROGRAM_FETCH_CONCURRENCY: Final = 4
 VERSION_INTERVAL: Final = timedelta(hours=12)
 VERSION_RETRY_INTERVAL: Final = timedelta(minutes=30)
+# Look again soon when broadcasts vanish: Mirakurun refills its services one
+# channel at a time after restarting with a changed channels.yml.
+SERVICE_RECHECK_INTERVAL: Final = timedelta(minutes=15)
 
 RELEASE_URL: Final = "https://github.com/Chinachu/Mirakurun/releases"
 
