@@ -4,9 +4,7 @@ rules:
     status: exempt
     comment: The integration does not register actions.
   appropriate-polling: done
-  brands:
-    status: todo
-    comment: Add brand/icon.png (and logo) under custom_components/mirakurun/brand/.
+  brands: done
   common-modules: done
   config-flow-test-coverage: done
   config-flow: done
