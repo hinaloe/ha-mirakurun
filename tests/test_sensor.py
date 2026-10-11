@@ -16,6 +16,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import (
     AiohttpClientMocker,
 )
 
+from custom_components.mirakurun import async_remove_config_entry_device
 from custom_components.mirakurun.const import DOMAIN
 
 from .common import (
@@ -172,6 +173,65 @@ async def test_briefly_missing_tuner_keeps_device_and_entities(
 
     assert _state(hass, f"{ENTRY_ID}_tuner_15_state") == "fault"
     assert "does not generate unique IDs" not in caplog.text
+
+
+async def test_tuner_missing_from_one_poll_is_not_added_twice(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    frozen_now: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    mock_mirakurun(aioclient_mock)
+    await setup_integration(hass, config_entry)
+
+    aioclient_mock.clear_requests()
+    mock_mirakurun(aioclient_mock, tuners=load_fixture("tuners.json")[:2])
+    await _refresh_status(hass, frozen_now)
+    assert _state(hass, f"{ENTRY_ID}_tuner_15_state") == STATE_UNAVAILABLE
+
+    aioclient_mock.clear_requests()
+    mock_mirakurun(aioclient_mock)
+    await _refresh_status(hass, frozen_now)
+
+    assert _state(hass, f"{ENTRY_ID}_tuner_15_state") == "fault"
+    assert "does not generate unique IDs" not in caplog.text
+
+
+async def test_manually_deleted_tuner_stays_deleted(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    frozen_now: FrozenDateTimeFactory,
+    device_registry: dr.DeviceRegistry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    mock_mirakurun(aioclient_mock)
+    await setup_integration(hass, config_entry)
+
+    aioclient_mock.clear_requests()
+    mock_mirakurun(aioclient_mock, tuners=load_fixture("tuners.json")[:2])
+    await _refresh_status(hass, frozen_now)
+    device = device_registry.async_get_device_by_identifier(
+        (DOMAIN, f"{ENTRY_ID}_tuner_15"), ENTRY_ID
+    )
+    assert device is not None
+    assert await async_remove_config_entry_device(hass, config_entry, device)
+    device_registry.async_remove_device(device.id)
+    await hass.async_block_till_done()
+
+    # A tuner the user deleted does not reappear on its own; a reload brings
+    # it back.
+    aioclient_mock.clear_requests()
+    mock_mirakurun(aioclient_mock)
+    await _refresh_status(hass, frozen_now)
+
+    assert (
+        entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{ENTRY_ID}_tuner_15_state"
+        )
+        is None
+    )
 
 
 async def test_status_failure_makes_entities_unavailable(
