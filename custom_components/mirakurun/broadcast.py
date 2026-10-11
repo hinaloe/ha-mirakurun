@@ -42,13 +42,13 @@ class SubchannelSplit:
 
 @dataclass(frozen=True, slots=True)
 class Discovery:
-    """Broadcasts of the selected types and every TV channel type on the server."""
+    """Broadcasts of the selected types and how well they could be measured."""
 
     broadcasts: tuple[Broadcast, ...]
     classification: Classification
-    # Every TV channel type on the server, not just the selected ones; the
-    # coordinator's guards against empty or vanished types rely on that.
-    channel_types: frozenset[str]
+    # Selected physical channels, as (channel.type, channel.channel), whose
+    # grouping is a guess: the main programs failed or had nothing upcoming.
+    unmeasured: frozenset[tuple[str, str]] = frozenset()
 
 
 def group_by_channel(services: Sequence[Service]) -> list[list[Service]]:
@@ -143,17 +143,19 @@ async def discover(
     selected = [g for g in groups if g[0].channel.type in channel_types]
     results = await asyncio.gather(*(classify(group) for group in selected))
     classification: Classification = {}
+    unmeasured: set[tuple[str, str]] = set()
     for group, (broadcasts, measured) in zip(selected, results, strict=True):
         if not measured:
             # A guess must not be stored: it would be taken for a measurement
             # and raise the bar for a first-seen service to join.
+            unmeasured.add((group[0].channel.type, group[0].channel.channel))
             continue
         dependent = {s.id for b in broadcasts for s in b.subs}
         classification.update({s.id: s.id in dependent for s in group[1:]})
     return Discovery(
         broadcasts=tuple(b for broadcasts, _ in results for b in broadcasts),
         classification=classification,
-        channel_types=tv_channel_types(services),
+        unmeasured=frozenset(unmeasured),
     )
 
 

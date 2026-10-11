@@ -1,7 +1,7 @@
 """Data update coordinators for Mirakurun."""
 
 import asyncio
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 import logging
 
@@ -105,7 +105,8 @@ class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
 
     Every refresh fetches the service list; subchannels are regrouped (one
     program fetch per physical channel) only when the TV services of the
-    selected types changed or ``REGROUP_INTERVAL`` passed since the last regroup.
+    selected types changed, ``REGROUP_INTERVAL`` passed since the last regroup,
+    or the last regroup left a channel unmeasured.
     """
 
     config_entry: MirakurunConfigEntry
@@ -131,8 +132,8 @@ class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
         self._store = store
         self._classification: Classification | None = None
         self._regular_interval = self.update_interval
-        # The lineup and time of the last regroup, to skip regroups that would
-        # find nothing new.
+        # The lineup and time of the last fully measured regroup, to skip
+        # regroups that would find nothing new.
         self._lineup_key: frozenset[tuple[int, str, str]] = frozenset()
         self._regrouped_at: datetime | None = None
         # Broadcasts known before the first refresh (their devices), so a
@@ -176,17 +177,17 @@ class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
             and self._regrouped_at is not None
             and now - self._regrouped_at < REGROUP_INTERVAL
         ):
-            # Light check: the lineup is unchanged, so the previous grouping
-            # stands without measuring every channel's programs again.
+            # Light check: the lineup is unchanged and fully measured, so the
+            # previous grouping stands without fetching programs again.
             self.update_interval = self._regular_interval
-            if self.data.channel_types == server_types:
-                return self.data
-            return replace(self.data, channel_types=server_types)
+            return self.data
         discovery = await discover(
             self.client, now, channel_types, self._classification, services=services
         )
         self._lineup_key = key
-        self._regrouped_at = now
+        # A regroup that had to guess for some channel (typical right after
+        # Mirakurun refilled its services) is redone on the next refresh.
+        self._regrouped_at = None if discovery.unmeasured else now
         merged = {**self._classification, **discovery.classification}
         if merged != self._classification:
             self._classification = merged
@@ -199,7 +200,7 @@ class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
         current_ids = {b.main.id for b in discovery.broadcasts}
         self.update_interval = (
             SERVICE_RECHECK_INTERVAL
-            if previous_ids - current_ids
+            if previous_ids - current_ids or discovery.unmeasured
             else self._regular_interval
         )
         return discovery

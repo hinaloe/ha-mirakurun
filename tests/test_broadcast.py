@@ -171,7 +171,7 @@ async def test_discover_filters_types(
         Broadcast(MX2_SVC),
     )
     assert result.classification == {NHK2_SVC.id: True, MX2_SVC.id: False}
-    assert result.channel_types == frozenset({"GR", "CS"})
+    assert result.unmeasured == frozenset()
 
 
 async def test_discover_uses_given_services(
@@ -180,7 +180,6 @@ async def test_discover_uses_given_services(
     client = MirakurunClient(async_get_clientsession(hass), BASE_URL)
     result = await discover(client, NOW, ["GR"], {}, services=SERVICES[:3])
     assert result.broadcasts == (Broadcast(NHK_SVC, (NHK2_SVC,)),)
-    assert result.channel_types == frozenset({"GR"})
     assert not any(url.path == "/api/services" for _, url, _, _ in mirakurun.mock_calls)
 
 
@@ -191,7 +190,8 @@ async def test_discover_without_types(
     result = await discover(client, NOW, [], {})
     assert result.broadcasts == ()
     assert result.classification == {}
-    assert result.channel_types == frozenset({"GR", "CS"})
+    # Channels of unselected types are not measured, but not missed either.
+    assert result.unmeasured == frozenset()
 
 
 async def test_discover_uses_previous_on_failure(
@@ -225,6 +225,7 @@ async def test_discover_does_not_record_failed_channel(
     assert result.broadcasts[:2] == (Broadcast(NHK_SVC), Broadcast(NHK2_SVC))
     assert NHK2_SVC.id not in result.classification
     assert result.classification == {MX2_SVC.id: False}
+    assert result.unmeasured == frozenset({("GR", "27")})
     messages = _debug_messages(caplog)
     assert len(messages) == 1
     assert "GR 27" in messages[0]
@@ -242,6 +243,7 @@ async def test_discover_does_not_record_channel_without_upcoming(
     result = await discover(client, NOW, ["GR"], {})
     assert MX2_SVC.id not in result.classification
     assert result.classification == {NHK2_SVC.id: True}
+    assert result.unmeasured == frozenset({("GR", "16")})
     messages = _debug_messages(caplog)
     assert len(messages) == 1
     assert "GR 16" in messages[0]
