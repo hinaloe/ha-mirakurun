@@ -79,10 +79,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: MirakurunConfigEntry) ->
     def _async_status_changed() -> None:
         # The server device is created once; keep its version current.
         registry = dr.async_get(hass)
+        device_id = entry.runtime_data.server_device_id
         version = status.data.status.version
-        device = registry.async_get(server_device.id, include_child_devices=False)
+        device = registry.async_get(device_id, include_child_devices=False)
         if device is not None and device.sw_version != version:
-            registry.async_update_device(server_device.id, sw_version=version)
+            registry.async_update_device(device_id, sw_version=version)
 
     entry.async_on_unload(status.async_add_listener(_async_status_changed))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

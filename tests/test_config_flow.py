@@ -286,7 +286,7 @@ async def test_options_flow_keeps_saved_types_the_server_lacks(
     assert schema[key].config["options"] == [
         {"value": "gr", "label": "GR"},
         {"value": "cs", "label": "CS"},
-        {"value": "sky", "label": "SKY (not reported by Mirakurun)"},
+        {"value": "sky", "label": "SKY"},
     ]
     assert key.default() == ["gr", "sky"]
 

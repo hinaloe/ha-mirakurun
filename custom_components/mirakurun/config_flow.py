@@ -223,14 +223,7 @@ class MirakurunOptionsFlow(OptionsFlowWithReload):
                 probatio.Required(CONF_CHANNEL_TYPES, default=selected): SelectSelector(
                     SelectSelectorConfig(
                         options=[
-                            SelectOptionDict(
-                                value=_option_value(t),
-                                label=(
-                                    t
-                                    if t in available
-                                    else f"{t} (not reported by Mirakurun)"
-                                ),
-                            )
+                            SelectOptionDict(value=_option_value(t), label=t)
                             for t in offered
                         ],
                         multiple=True,

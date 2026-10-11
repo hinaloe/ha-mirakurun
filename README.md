@@ -103,6 +103,7 @@ Tested with Mirakurun 4.x. Mirakurun 3.x is not tested.
 
 - **Cannot connect**: open `http://<host>:40772/api/status` from the Home Assistant host. If it does not respond, check the address, port and firewall.
 - **A broadcast is missing**: check that its type is selected in the options and that its device is not disabled. New broadcasts appear at the next broadcast list refresh; reload the integration to refresh now.
+- **Broadcast list refreshes keep failing after a type was removed**: if you removed a selected broadcast type from Mirakurun on purpose, deselect it in the options or reload the integration; until then each broadcast list refresh fails to protect that type's devices.
 - **A subchannel is grouped the wrong way**: the grouping only changes when the share of simulcast programs clearly crosses the thresholds above. Reload the integration after the program guide has been updated. The remembered grouping is cleared only by deleting and re-adding the integration.
 - Download diagnostics from the integration page when reporting an issue.
 
