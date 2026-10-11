@@ -189,7 +189,29 @@ async def test_discover_uses_previous_on_failure(
     client = MirakurunClient(async_get_clientsession(hass), BASE_URL)
     result = await discover(client, NOW, ["GR"], {NHK2_SVC.id: True})
     assert result.broadcasts[0] == Broadcast(NHK_SVC, (NHK2_SVC,))
-    assert result.classification[NHK2_SVC.id] is True
+    # The prior stays in the coordinator's store; it is not re-reported.
+    assert NHK2_SVC.id not in result.classification
+
+
+async def test_discover_does_not_record_failed_channel(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    mock_mirakurun(aioclient_mock, fail_programs={NHK})
+    client = MirakurunClient(async_get_clientsession(hass), BASE_URL)
+    result = await discover(client, NOW, ["GR"], {})
+    assert result.broadcasts[:2] == (Broadcast(NHK_SVC), Broadcast(NHK2_SVC))
+    assert NHK2_SVC.id not in result.classification
+    assert result.classification == {MX2_SVC.id: False}
+
+
+async def test_discover_does_not_record_channel_without_upcoming(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    mock_mirakurun(aioclient_mock, programs={**PROGRAMS, MX1: []})
+    client = MirakurunClient(async_get_clientsession(hass), BASE_URL)
+    result = await discover(client, NOW, ["GR"], {})
+    assert MX2_SVC.id not in result.classification
+    assert result.classification == {NHK2_SVC.id: True}
 
 
 def test_classification_from_option_map() -> None:

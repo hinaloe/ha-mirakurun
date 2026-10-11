@@ -1,8 +1,10 @@
 """Tests for following broadcasts added to and removed from Mirakurun."""
 
+import asyncio
 from collections.abc import Collection
 from datetime import timedelta
 from typing import Any
+from unittest.mock import patch
 
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.core import HomeAssistant
@@ -16,12 +18,20 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import (
     AiohttpClientMocker,
 )
 
-from custom_components.mirakurun.const import DOMAIN
+from custom_components.mirakurun.api import MirakurunClient
+from custom_components.mirakurun.const import (
+    CONF_CHANNEL_TYPES,
+    DOMAIN,
+    PROGRAM_FETCH_CONCURRENCY,
+)
+from custom_components.mirakurun.models import Program
 
 from .common import (
+    DEFAULT_OPTIONS,
     ENTRY_ID,
     PROGRAMS,
     at,
+    create_entry,
     entity_id,
     load_fixture,
     make_program,
@@ -207,3 +217,36 @@ async def test_split_sensor_added_when_subchannel_appears(
         hass.states.get(entity_id(hass, "binary_sensor", f"{NHK_KEY}_subchannel_split"))
         is not None
     )
+
+
+async def test_program_fetches_are_bounded(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    in_flight = 0
+    peak = 0
+    real_get_programs = MirakurunClient.get_programs
+
+    async def counting(
+        self: MirakurunClient, network_id: int, service_id: int
+    ) -> list[Program]:
+        nonlocal in_flight, peak
+        in_flight += 1
+        peak = max(peak, in_flight)
+        try:
+            await asyncio.sleep(0)
+            return await real_get_programs(self, network_id, service_id)
+        finally:
+            in_flight -= 1
+
+    mock_mirakurun(aioclient_mock)
+    entry = create_entry({**DEFAULT_OPTIONS, CONF_CHANNEL_TYPES: ["GR", "CS"]})
+    with patch.object(MirakurunClient, "get_programs", counting):
+        await setup_integration(hass, entry)
+
+    schedules = entry.runtime_data.programs.data
+    assert len(schedules) == 5
+    targets = [
+        s for b in schedules.values() for s in (b.broadcast.main, *b.broadcast.subs)
+    ]
+    assert len(targets) > PROGRAM_FETCH_CONCURRENCY
+    assert 1 < peak <= PROGRAM_FETCH_CONCURRENCY

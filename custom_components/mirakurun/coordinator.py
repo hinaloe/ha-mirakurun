@@ -23,11 +23,12 @@ from .const import (
     DEFAULT_SERVICE_INTERVAL,
     DEFAULT_STATUS_INTERVAL,
     DOMAIN,
+    PROGRAM_FETCH_CONCURRENCY,
     VERSION_INTERVAL,
     VERSION_RETRY_INTERVAL,
 )
 from .identifiers import broadcast_identifier
-from .models import Service, Status, Tuner, Version
+from .models import Program, Service, Status, Tuner, Version
 from .programs import Schedule, build_schedule
 from .store import ClassificationStore
 
@@ -183,9 +184,16 @@ class ProgramCoordinator(DataUpdateCoordinator[dict[int, BroadcastSchedule]]):
     async def _async_update_data(self) -> dict[int, BroadcastSchedule]:
         broadcasts = self._target_broadcasts()
         targets = [s for b in broadcasts for s in (b.main, *b.subs)]
+        semaphore = asyncio.Semaphore(PROGRAM_FETCH_CONCURRENCY)
+
+        async def fetch(service: Service) -> list[Program]:
+            async with semaphore:
+                return await self.client.get_programs(
+                    service.network_id, service.service_id
+                )
+
         results = await asyncio.gather(
-            *(self.client.get_programs(s.network_id, s.service_id) for s in targets),
-            return_exceptions=True,
+            *(fetch(s) for s in targets), return_exceptions=True
         )
         for result in results:
             if isinstance(result, BaseException) and not isinstance(
