@@ -107,3 +107,7 @@ Tested with Mirakurun 4.x. Mirakurun 3.x is not tested.
 ## Removal
 
 Go to **Settings → Devices & services → Mirakurun**, open the menu and choose **Delete**. Then remove the repository from HACS if you no longer need it.
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE).
