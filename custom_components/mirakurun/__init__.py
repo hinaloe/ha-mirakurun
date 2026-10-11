@@ -114,7 +114,8 @@ async def async_migrate_entry(hass: HomeAssistant, entry: MirakurunConfigEntry) 
     Minor version 1 selected individual broadcasts; minor version 2 used the
     service interval for full regroups and defaulted to 24 hours.
     """
-    if entry.version > 1:
+    # HA rejects newer major versions before calling async_migrate_entry.
+    if entry.version > 1:  # pragma: no cover
         return False
     if entry.minor_version < 2:
         legacy = dict(entry.options)
