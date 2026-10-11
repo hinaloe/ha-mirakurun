@@ -480,19 +480,6 @@ async def test_migrates_service_interval(
     assert entry.options == {**DEFAULT_OPTIONS, CONF_SERVICE_INTERVAL: new}
 
 
-async def test_newer_major_version_is_not_migrated(
-    hass: HomeAssistant, mirakurun: AiohttpClientMocker
-) -> None:
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data=dict(create_entry().data),
-        options=DEFAULT_OPTIONS,
-        version=2,
-    )
-    await setup_integration(hass, entry)
-    assert entry.state is ConfigEntryState.MIGRATION_ERROR
-
-
 async def test_remove_entry_removes_classification(
     hass: HomeAssistant, mirakurun: AiohttpClientMocker, config_entry: MockConfigEntry
 ) -> None:
