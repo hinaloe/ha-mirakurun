@@ -11,8 +11,11 @@ from .broadcast import classification_from_option_map
 from .const import (
     CONF_BROADCAST_MAP,
     CONF_PROGRAM_INTERVAL,
+    CONF_SERVICE_INTERVAL,
     CONF_STATUS_INTERVAL,
+    DEFAULT_SERVICE_INTERVAL,
     DOMAIN,
+    LEGACY_DEFAULT_SERVICE_INTERVAL,
     default_options,
 )
 from .coordinator import (
@@ -106,7 +109,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: MirakurunConfigEntry) -
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: MirakurunConfigEntry) -> bool:
-    """Migrate per-broadcast options (minor version 1) to broadcast types."""
+    """Migrate older options.
+
+    Minor version 1 selected individual broadcasts; minor version 2 used the
+    service interval for full regroups and defaulted to 24 hours.
+    """
     if entry.version > 1:
         return False
     if entry.minor_version < 2:
@@ -119,6 +126,11 @@ async def async_migrate_entry(hass: HomeAssistant, entry: MirakurunConfigEntry) 
             classification_from_option_map(legacy.get(CONF_BROADCAST_MAP, {}))
         )
         hass.config_entries.async_update_entry(entry, options=options, minor_version=2)
+    if entry.minor_version < 3:
+        options = dict(entry.options)
+        if options.get(CONF_SERVICE_INTERVAL) == LEGACY_DEFAULT_SERVICE_INTERVAL:
+            options[CONF_SERVICE_INTERVAL] = DEFAULT_SERVICE_INTERVAL
+        hass.config_entries.async_update_entry(entry, options=options, minor_version=3)
     return True
 
 

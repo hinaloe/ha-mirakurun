@@ -16,6 +16,7 @@ from custom_components.mirakurun import async_remove_config_entry_device
 from custom_components.mirakurun.const import (
     CONF_CHANNEL_TYPES,
     CONF_PROGRAM_INTERVAL,
+    CONF_SERVICE_INTERVAL,
     CONF_STATUS_INTERVAL,
     DEFAULT_SERVICE_INTERVAL,
     DOMAIN,
@@ -446,8 +447,9 @@ async def test_migrates_legacy_options(
     entry = create_entry(LEGACY_OPTIONS, minor_version=1)
     await setup_integration(hass, entry)
     assert entry.state is ConfigEntryState.LOADED
-    assert entry.minor_version == 2
+    assert entry.minor_version == 3
     assert entry.options == {**DEFAULT_OPTIONS, CONF_STATUS_INTERVAL: 45}
+    assert entry.options[CONF_SERVICE_INTERVAL] == DEFAULT_SERVICE_INTERVAL
     stored = await ClassificationStore(hass, ENTRY_ID).async_load()
     assert stored[3273601025] is True
 
@@ -463,6 +465,32 @@ async def test_migrates_legacy_options_without_intervals(
     entry = create_entry(legacy, minor_version=1)
     await setup_integration(hass, entry)
     assert entry.options == DEFAULT_OPTIONS
+
+
+@pytest.mark.parametrize(("old", "new"), [(24, DEFAULT_SERVICE_INTERVAL), (6, 6)])
+async def test_migrates_service_interval(
+    hass: HomeAssistant, mirakurun: AiohttpClientMocker, old: int, new: int
+) -> None:
+    # The interval used to cover full regroups (default 24 h); it now sets the
+    # light check, so the old default moves to the new one.
+    entry = create_entry({**DEFAULT_OPTIONS, CONF_SERVICE_INTERVAL: old}, 2)
+    await setup_integration(hass, entry)
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.minor_version == 3
+    assert entry.options == {**DEFAULT_OPTIONS, CONF_SERVICE_INTERVAL: new}
+
+
+async def test_newer_major_version_is_not_migrated(
+    hass: HomeAssistant, mirakurun: AiohttpClientMocker
+) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=dict(create_entry().data),
+        options=DEFAULT_OPTIONS,
+        version=2,
+    )
+    await setup_integration(hass, entry)
+    assert entry.state is ConfigEntryState.MIGRATION_ERROR
 
 
 async def test_remove_entry_removes_classification(

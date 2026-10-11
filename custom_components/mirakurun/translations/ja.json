@@ -31,13 +31,13 @@
           "channel_types": "放送の種別",
           "status_interval": "チューナーと状態の取得間隔",
           "program_interval": "番組表の取得間隔",
-          "service_interval": "放送一覧の更新間隔"
+          "service_interval": "放送一覧の確認間隔"
         },
         "data_description": {
           "channel_types": "この種別の放送に番組情報のエンティティを作ります。Mirakurun で増えた放送や消えた放送には自動で追従します。要らない放送はデバイスを無効化して隠してください。",
           "status_interval": "チューナーの使用状況とサーバーの状態を取得する間隔です。",
           "program_interval": "番組表を取得し直す間隔です。",
-          "service_interval": "放送一覧を取り直し、サブチャンネルのまとめ方を判定し直す間隔です。"
+          "service_interval": "Mirakurun のサービス一覧を確認し、増えた放送や消えた放送を見つける間隔です。サブチャンネルのまとめ方は、一覧が変わったときと 1 日 1 回、判定し直します。"
         }
       }
     },

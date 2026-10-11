@@ -108,7 +108,7 @@ DEFAULT_OPTIONS: dict[str, Any] = {
     CONF_CHANNEL_TYPES: ["GR"],
     CONF_STATUS_INTERVAL: 30,
     CONF_PROGRAM_INTERVAL: 30,
-    CONF_SERVICE_INTERVAL: 24,
+    CONF_SERVICE_INTERVAL: 1,
 }
 
 # Options written by phase 1 (config entry minor version 1).
@@ -174,7 +174,7 @@ def mock_mirakurun(
 
 
 def create_entry(
-    options: Mapping[str, Any] | None = None, minor_version: int = 2
+    options: Mapping[str, Any] | None = None, minor_version: int = 3
 ) -> MockConfigEntry:
     """Create a config entry for the mocked server."""
     return MockConfigEntry(

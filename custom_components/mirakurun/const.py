@@ -13,6 +13,9 @@ CONF_SERVICE_INTERVAL: Final = "service_interval"
 
 # Legacy option of config entry minor version 1, read only by the migration.
 CONF_BROADCAST_MAP: Final = "broadcast_map"
+# Default service interval (hours) up to config entry minor version 2, when it
+# also set how often subchannels were regrouped.
+LEGACY_DEFAULT_SERVICE_INTERVAL: Final = 24
 
 DEFAULT_CHANNEL_TYPES: Final = ("GR",)
 DEFAULT_STATUS_INTERVAL: Final = 30
@@ -21,7 +24,7 @@ MAX_STATUS_INTERVAL: Final = 300
 DEFAULT_PROGRAM_INTERVAL: Final = 30
 MIN_PROGRAM_INTERVAL: Final = 5
 MAX_PROGRAM_INTERVAL: Final = 180
-DEFAULT_SERVICE_INTERVAL: Final = 24
+DEFAULT_SERVICE_INTERVAL: Final = 1
 MIN_SERVICE_INTERVAL: Final = 1
 MAX_SERVICE_INTERVAL: Final = 168
 PROGRAM_FETCH_CONCURRENCY: Final = 4
