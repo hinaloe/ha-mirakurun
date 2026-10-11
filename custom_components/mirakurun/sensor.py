@@ -13,14 +13,23 @@ from homeassistant.components.sensor import (
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.util import dt as dt_util
 
-from .coordinator import MirakurunConfigEntry, StatusCoordinator, StatusData
+from .broadcast import Broadcast
+from .coordinator import (
+    MirakurunConfigEntry,
+    ProgramCoordinator,
+    StatusCoordinator,
+    StatusData,
+)
 from .entity import (
+    MirakurunBroadcastEntity,
     MirakurunServerEntity,
     MirakurunTunerEntity,
     async_add_tuner_entities,
 )
 from .models import Tuner
+from .programs import ScheduledProgram, current_program, genre_key, next_program
 
 PARALLEL_UPDATES = 0
 
@@ -171,6 +180,15 @@ async def async_setup_entry(
         ],
         async_add_entities,
     )
+    programs = entry.runtime_data.programs
+    async_add_entities(
+        entity
+        for broadcast in entry.runtime_data.broadcasts
+        for entity in (
+            MirakurunCurrentProgramSensor(programs, entry, broadcast),
+            MirakurunNextProgramSensor(programs, entry, broadcast),
+        )
+    )
 
 
 class MirakurunServerSensor(MirakurunServerEntity, SensorEntity):
@@ -218,3 +236,75 @@ class MirakurunTunerSensor(MirakurunTunerEntity, SensorEntity):
         if tuner is None or self.entity_description.attributes_fn is None:
             return None
         return self.entity_description.attributes_fn(tuner)
+
+
+class MirakurunCurrentProgramSensor(MirakurunBroadcastEntity, SensorEntity):
+    """The program currently on air on the main service."""
+
+    _attr_translation_key = "current_program"
+
+    def __init__(
+        self,
+        coordinator: ProgramCoordinator,
+        entry: MirakurunConfigEntry,
+        broadcast: Broadcast,
+    ) -> None:
+        super().__init__(coordinator, entry, broadcast, "current_program")
+
+    def _item(self) -> ScheduledProgram | None:
+        schedule = self.schedule
+        if schedule is None:
+            return None
+        return current_program(schedule.main, dt_util.utcnow())
+
+    @property
+    def native_value(self) -> str | None:
+        item = self._item()
+        return item.program.name if item else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        item = self._item()
+        if item is None:
+            return None
+        return {
+            "start": item.start.isoformat(),
+            "end": item.end.isoformat(),
+            "description": item.program.description,
+            "genre": genre_key(item.program.genre_lv1),
+        }
+
+
+class MirakurunNextProgramSensor(MirakurunBroadcastEntity, SensorEntity):
+    """The next program on the main service."""
+
+    _attr_translation_key = "next_program"
+
+    def __init__(
+        self,
+        coordinator: ProgramCoordinator,
+        entry: MirakurunConfigEntry,
+        broadcast: Broadcast,
+    ) -> None:
+        super().__init__(coordinator, entry, broadcast, "next_program")
+
+    def _item(self) -> ScheduledProgram | None:
+        schedule = self.schedule
+        if schedule is None:
+            return None
+        return next_program(schedule.main, dt_util.utcnow())
+
+    @property
+    def native_value(self) -> str | None:
+        item = self._item()
+        return item.program.name if item else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        item = self._item()
+        if item is None:
+            return None
+        return {
+            "start": item.start.isoformat(),
+            "genre": genre_key(item.program.genre_lv1),
+        }

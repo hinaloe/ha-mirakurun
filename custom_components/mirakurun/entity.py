@@ -1,22 +1,31 @@
 """Base entities and device info for Mirakurun."""
 
 from collections.abc import Callable, Iterable
+from datetime import datetime
 from typing import Any
 
 from homeassistant.const import CONF_URL
-from homeassistant.core import callback
+from homeassistant.core import CALLBACK_TYPE, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
 )
+from homeassistant.util import dt as dt_util
 
 from .broadcast import Broadcast
 from .const import DOMAIN, MANUFACTURER
-from .coordinator import MirakurunConfigEntry, StatusCoordinator
+from .coordinator import (
+    BroadcastSchedule,
+    MirakurunConfigEntry,
+    ProgramCoordinator,
+    StatusCoordinator,
+)
 from .models import Tuner
+from .programs import next_transition
 
 
 def server_identifier(entry: MirakurunConfigEntry) -> str:
@@ -137,3 +146,70 @@ def async_add_tuner_entities(
 
     add_new_tuners()
     entry.async_on_unload(coordinator.async_add_listener(add_new_tuners))
+
+
+class MirakurunBroadcastEntity(MirakurunEntity[ProgramCoordinator]):
+    """An entity of a broadcast device that refreshes at program boundaries."""
+
+    def __init__(
+        self,
+        coordinator: ProgramCoordinator,
+        entry: MirakurunConfigEntry,
+        broadcast: Broadcast,
+        key: str,
+    ) -> None:
+        super().__init__(coordinator)
+        self.broadcast = broadcast
+        self._attr_unique_id = f"{broadcast_identifier(entry, broadcast.main.id)}_{key}"
+        self._attr_device_info = broadcast_device_info(entry, broadcast)
+        self._unsub_transition: CALLBACK_TYPE | None = None
+
+    @property
+    def schedule(self) -> BroadcastSchedule | None:
+        """Return the latest schedules for this broadcast."""
+        return self.coordinator.data.get(self.broadcast.main.id)
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self._schedule_transition()
+
+    async def async_will_remove_from_hass(self) -> None:
+        self._cancel_transition()
+        await super().async_will_remove_from_hass()
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        self._schedule_transition()
+        super()._handle_coordinator_update()
+
+    @callback
+    def _cancel_transition(self) -> None:
+        if self._unsub_transition is not None:
+            self._unsub_transition()
+            self._unsub_transition = None
+
+    @callback
+    def _schedule_transition(self) -> None:
+        self._cancel_transition()
+        schedule = self.schedule
+        if schedule is None:
+            return
+        now = dt_util.utcnow()
+        candidates = [
+            t
+            for t in (
+                next_transition(schedule.main, now),
+                *(next_transition(sub, now) for _, sub in schedule.subs),
+            )
+            if t is not None
+        ]
+        if candidates:
+            self._unsub_transition = async_track_point_in_utc_time(
+                self.hass, self._handle_transition, min(candidates)
+            )
+
+    @callback
+    def _handle_transition(self, _now: datetime) -> None:
+        self._unsub_transition = None
+        self._schedule_transition()
+        self.async_write_ha_state()
