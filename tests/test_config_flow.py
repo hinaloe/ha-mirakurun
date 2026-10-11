@@ -270,11 +270,11 @@ async def test_options_flow(
     )
 
 
-async def test_options_flow_offers_server_types(
+async def test_options_flow_keeps_saved_types_the_server_lacks(
     hass: HomeAssistant, mirakurun: AiohttpClientMocker
 ) -> None:
     entry = create_entry({**DEFAULT_OPTIONS, CONF_CHANNEL_TYPES: ["GR", "SKY"]})
-    entry.add_to_hass(hass)
+    await setup_integration(hass, entry)
     result = await hass.config_entries.options.async_init(entry.entry_id)
     schema = result["data_schema"].schema
     key = next(k for k in schema if k == CONF_CHANNEL_TYPES)
@@ -282,8 +282,34 @@ async def test_options_flow_offers_server_types(
     assert schema[key].config["options"] == [
         {"value": "gr", "label": "GR"},
         {"value": "cs", "label": "CS"},
+        {"value": "sky", "label": "SKY (not reported by Mirakurun)"},
     ]
-    assert key.default() == ["gr"]
+    assert key.default() == ["gr", "sky"]
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {
+            CONF_CHANNEL_TYPES: key.default(),
+            CONF_STATUS_INTERVAL: 30,
+            CONF_PROGRAM_INTERVAL: 30,
+            CONF_SERVICE_INTERVAL: 24,
+        },
+    )
+    await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_CHANNEL_TYPES] == ["GR", "SKY"]
+
+
+async def test_options_flow_aborts_without_services(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+) -> None:
+    mock_mirakurun(aioclient_mock, services=[])
+    config_entry.add_to_hass(hass)
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "no_services"
 
 
 async def test_options_flow_orders_server_types(

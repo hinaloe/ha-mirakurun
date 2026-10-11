@@ -1,5 +1,6 @@
 """The Mirakurun integration."""
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_URL, Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
@@ -108,6 +109,9 @@ async def async_remove_config_entry_device(
     hass: HomeAssistant, entry: MirakurunConfigEntry, device_entry: dr.DeviceEntry
 ) -> bool:
     """Allow removing devices that no longer exist on the server."""
+    if entry.state is not ConfigEntryState.LOADED:
+        # Without runtime data the current devices are unknown.
+        return False
     return not device_entry.identifiers & _current_identifiers(entry)
 
 

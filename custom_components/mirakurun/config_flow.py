@@ -205,24 +205,31 @@ class MirakurunOptionsFlow(OptionsFlowWithReload):
         except MirakurunError:
             return self.async_abort(reason="cannot_connect")
 
-        available = sorted(
-            {s.channel.type for s in services if s.type == TV_SERVICE_TYPE},
-            key=_type_order,
-        )
-        self._channel_types = {_option_value(t): t for t in available}
+        available = {s.channel.type for s in services if s.type == TV_SERVICE_TYPE}
+        if not available:
+            # Saving now could only drop types or store an empty selection.
+            return self.async_abort(reason="no_services")
         options = self.config_entry.options
-        selected = [
-            _option_value(channel_type)
-            for channel_type in options.get(CONF_CHANNEL_TYPES, DEFAULT_CHANNEL_TYPES)
-            if channel_type in available
-        ]
+        saved = list(options.get(CONF_CHANNEL_TYPES, DEFAULT_CHANNEL_TYPES))
+        # Saved types the server does not report right now (e.g. during a
+        # channel scan) stay offered and selected so submitting keeps them.
+        offered = sorted(available | set(saved), key=_type_order)
+        self._channel_types = {_option_value(t): t for t in offered}
+        selected = [_option_value(t) for t in offered if t in saved]
         schema = probatio.Schema(
             {
                 probatio.Required(CONF_CHANNEL_TYPES, default=selected): SelectSelector(
                     SelectSelectorConfig(
                         options=[
-                            SelectOptionDict(value=_option_value(t), label=t)
-                            for t in available
+                            SelectOptionDict(
+                                value=_option_value(t),
+                                label=(
+                                    t
+                                    if t in available
+                                    else f"{t} (not reported by Mirakurun)"
+                                ),
+                            )
+                            for t in offered
                         ],
                         multiple=True,
                         mode=SelectSelectorMode.LIST,

@@ -41,7 +41,10 @@
         }
       }
     },
-    "abort": {"cannot_connect": "Mirakurun に接続できませんでした。"}
+    "abort": {
+      "cannot_connect": "Mirakurun に接続できませんでした。",
+      "no_services": "Mirakurun からテレビのサービスが返されませんでした。チャンネルスキャンが終わってから開き直してください。"
+    }
   },
   "selector": {
     "channel_types": {
@@ -147,6 +150,9 @@
   "exceptions": {
     "cannot_connect": {"message": "Mirakurun に接続できませんでした: {error}"},
     "update_failed": {"message": "Mirakurun との通信でエラーが発生しました: {error}"},
-    "no_services": {"message": "Mirakurun からテレビのサービスが返されませんでした。"}
+    "no_services": {"message": "Mirakurun からテレビのサービスが返されませんでした。"},
+    "selected_types_missing": {
+      "message": "選んだ種別のサービスが Mirakurun にありません: {types}"
+    }
   }
 }

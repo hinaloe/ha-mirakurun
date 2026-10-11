@@ -133,6 +133,17 @@ class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
             # An empty service list (e.g. during a channel scan) must not wipe
             # every broadcast device.
             raise UpdateFailed(translation_domain=DOMAIN, translation_key="no_services")
+        if self.data is not None:
+            # Likewise when every service of a selected type vanishes (e.g.
+            # right after Mirakurun restarts with a changed channels.yml).
+            # Types that never had broadcasts are not missing.
+            previous = {b.main.channel.type for b in self.data.broadcasts}
+            if missing := (previous & set(channel_types)) - discovery.channel_types:
+                raise UpdateFailed(
+                    translation_domain=DOMAIN,
+                    translation_key="selected_types_missing",
+                    translation_placeholders={"types": ", ".join(sorted(missing))},
+                )
         merged = {**self._classification, **discovery.classification}
         if merged != self._classification:
             self._classification = merged

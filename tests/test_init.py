@@ -13,6 +13,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import (
 
 from custom_components.mirakurun import async_remove_config_entry_device
 from custom_components.mirakurun.const import (
+    CONF_CHANNEL_TYPES,
     CONF_PROGRAM_INTERVAL,
     CONF_STATUS_INTERVAL,
     DOMAIN,
@@ -30,6 +31,7 @@ from .common import (
     NHK2,
     PROGRAMS,
     create_entry,
+    load_fixture,
     mock_mirakurun,
     setup_integration,
 )
@@ -305,6 +307,57 @@ async def test_empty_service_list_keeps_broadcasts(
 
     assert not services.last_update_success
     assert len(services.data.broadcasts) == 3
+
+
+async def test_vanished_selected_type_keeps_broadcasts(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    mock_mirakurun(aioclient_mock)
+    await setup_integration(hass, config_entry)
+    services = config_entry.runtime_data.services
+
+    aioclient_mock.clear_requests()
+    cs_only = [s for s in load_fixture("services.json") if s["channel"]["type"] == "CS"]
+    mock_mirakurun(aioclient_mock, services=cs_only)
+    await services.async_refresh()
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert not services.last_update_success
+    assert len(services.data.broadcasts) == 3
+    assert device_registry.async_get_device_by_identifier(
+        (DOMAIN, f"{ENTRY_ID}_broadcast_3273601024"), config_entry.entry_id
+    )
+
+
+async def test_selected_type_without_broadcasts_is_not_missing(
+    hass: HomeAssistant, mirakurun: AiohttpClientMocker
+) -> None:
+    entry = create_entry({**DEFAULT_OPTIONS, CONF_CHANNEL_TYPES: ["GR", "BS"]})
+    await setup_integration(hass, entry)
+    assert entry.state is ConfigEntryState.LOADED
+
+    services = entry.runtime_data.services
+    await services.async_refresh()
+    assert services.last_update_success
+
+
+async def test_remove_device_while_not_loaded(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    mock_mirakurun(aioclient_mock, fail_services=True)
+    await setup_integration(hass, config_entry)
+    assert config_entry.state is ConfigEntryState.SETUP_RETRY
+    device = device_registry.async_get_or_create(
+        config_entry_id=config_entry.entry_id,
+        identifiers={(DOMAIN, f"{ENTRY_ID}_broadcast_999")},
+    )
+    assert not await async_remove_config_entry_device(hass, config_entry, device)
 
 
 async def test_migrates_legacy_options(

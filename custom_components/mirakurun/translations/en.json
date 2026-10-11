@@ -41,7 +41,10 @@
         }
       }
     },
-    "abort": {"cannot_connect": "Could not connect to Mirakurun."}
+    "abort": {
+      "cannot_connect": "Could not connect to Mirakurun.",
+      "no_services": "Mirakurun returned no TV services. Try again once its channel scan has finished."
+    }
   },
   "selector": {
     "channel_types": {
@@ -147,6 +150,9 @@
   "exceptions": {
     "cannot_connect": {"message": "Could not connect to Mirakurun: {error}"},
     "update_failed": {"message": "Error communicating with Mirakurun: {error}"},
-    "no_services": {"message": "Mirakurun returned no TV services."}
+    "no_services": {"message": "Mirakurun returned no TV services."},
+    "selected_types_missing": {
+      "message": "Mirakurun reports no services of the selected types: {types}"
+    }
   }
 }
