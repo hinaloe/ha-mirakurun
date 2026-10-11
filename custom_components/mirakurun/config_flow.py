@@ -113,7 +113,9 @@ class MirakurunConfigFlow(ConfigFlow, domain=DOMAIN):
         try:
             # /api/version shells out to npm and can fail where /api/status works
             await client.get_status()
-        except MirakurunError:
+        except MirakurunError as err:
+            # Also reached when the server answers but is not Mirakurun.
+            _LOGGER.debug("Mirakurun check of %s failed: %s", url, err)
             return {"base": "cannot_connect"}
         except Exception:
             _LOGGER.exception("Unexpected error while connecting to Mirakurun")

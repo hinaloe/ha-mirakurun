@@ -22,12 +22,18 @@ class MirakurunResponseError(MirakurunError):
 
 
 def normalize_url(url: str) -> str:
-    """Normalize a user supplied URL to the server root without ``/api``."""
+    """Normalize a user supplied URL to the server root.
+
+    Everything from the first ``/api`` path segment on is dropped, so pasted
+    endpoint URLs such as ``http://host:40772/api/status`` work too.
+    """
     parsed = URL(url.strip())
     if parsed.scheme not in ("http", "https") or not parsed.host:
         raise ValueError(f"Invalid Mirakurun URL: {url!r}")
-    path = parsed.path.rstrip("/")
-    path = path.removesuffix("/api")
+    segments = parsed.path.split("/")
+    if "api" in segments:
+        segments = segments[: segments.index("api")]
+    path = "/".join(segments).rstrip("/")
     normalized = parsed.with_path(path or "/").with_query(None).with_fragment(None)
     return str(normalized).rstrip("/")
 

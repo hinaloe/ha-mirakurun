@@ -1,6 +1,7 @@
 """Tests for broadcast grouping."""
 
 from datetime import timedelta
+import logging
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -35,6 +36,7 @@ from .common import (
     mock_mirakurun,
 )
 
+LOGGER = "custom_components.mirakurun"
 SERVICES = [Service.from_dict(s) for s in load_fixture("services.json")]
 BY_SID = {s.service_id: s for s in SERVICES}
 NHK_SVC, NHK2_SVC = BY_SID[1024], BY_SID[1025]
@@ -193,25 +195,47 @@ async def test_discover_uses_previous_on_failure(
     assert NHK2_SVC.id not in result.classification
 
 
+def _debug_messages(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [
+        r.getMessage()
+        for r in caplog.records
+        if r.levelno == logging.DEBUG and r.name == LOGGER
+    ]
+
+
 async def test_discover_does_not_record_failed_channel(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    caplog.set_level(logging.DEBUG, logger=LOGGER)
     mock_mirakurun(aioclient_mock, fail_programs={NHK})
     client = MirakurunClient(async_get_clientsession(hass), BASE_URL)
     result = await discover(client, NOW, ["GR"], {})
     assert result.broadcasts[:2] == (Broadcast(NHK_SVC), Broadcast(NHK2_SVC))
     assert NHK2_SVC.id not in result.classification
     assert result.classification == {MX2_SVC.id: False}
+    messages = _debug_messages(caplog)
+    assert len(messages) == 1
+    assert "GR 27" in messages[0]
+    assert "programs could not be fetched" in messages[0]
 
 
 async def test_discover_does_not_record_channel_without_upcoming(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    caplog.set_level(logging.DEBUG, logger=LOGGER)
     mock_mirakurun(aioclient_mock, programs={**PROGRAMS, MX1: []})
     client = MirakurunClient(async_get_clientsession(hass), BASE_URL)
     result = await discover(client, NOW, ["GR"], {})
     assert MX2_SVC.id not in result.classification
     assert result.classification == {NHK2_SVC.id: True}
+    messages = _debug_messages(caplog)
+    assert len(messages) == 1
+    assert "GR 16" in messages[0]
+    assert "no upcoming programs" in messages[0]
 
 
 def test_classification_from_option_map() -> None:

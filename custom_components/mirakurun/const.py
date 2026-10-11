@@ -11,8 +11,7 @@ CONF_STATUS_INTERVAL: Final = "status_interval"
 CONF_PROGRAM_INTERVAL: Final = "program_interval"
 CONF_SERVICE_INTERVAL: Final = "service_interval"
 
-# Legacy options of config entry minor version 1, read only by the migration.
-CONF_BROADCASTS: Final = "broadcasts"
+# Legacy option of config entry minor version 1, read only by the migration.
 CONF_BROADCAST_MAP: Final = "broadcast_map"
 
 DEFAULT_CHANNEL_TYPES: Final = ("GR",)

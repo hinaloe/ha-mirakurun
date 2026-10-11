@@ -29,6 +29,13 @@ from .common import BASE_URL, NHK, at, make_program
         ("http://mirakurun.local:40772/api", "http://mirakurun.local:40772"),
         (" http://mirakurun.local:40772/api/ ", "http://mirakurun.local:40772"),
         ("https://tv.example.com/mirakurun/api", "https://tv.example.com/mirakurun"),
+        ("http://mirakurun.local:40772/api/status", "http://mirakurun.local:40772"),
+        (
+            "http://mirakurun.local:40772/mirakurun/api/version",
+            "http://mirakurun.local:40772/mirakurun",
+        ),
+        ("http://mirakurun.local:40772/api/docs/?x=1", "http://mirakurun.local:40772"),
+        ("http://mirakurun.local:40772/apiary", "http://mirakurun.local:40772/apiary"),
     ],
 )
 def test_normalize_url(raw: str, expected: str) -> None:

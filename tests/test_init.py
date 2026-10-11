@@ -219,6 +219,25 @@ async def test_program_failure_and_recovery_are_logged_once(
     )
 
 
+async def test_program_failure_without_previous_data_is_logged_plainly(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    mock_mirakurun(aioclient_mock, fail_programs={NHK2})
+    await setup_integration(hass, config_entry)
+
+    warnings = [
+        r.getMessage()
+        for r in caplog.records
+        if r.levelno == logging.WARNING and r.name == LOGGER
+    ]
+    assert len(warnings) == 1
+    assert warnings[0].startswith("Failed to fetch programs for ＮＨＫ総合２・東京: ")
+    assert "keeping previous data" not in warnings[0]
+
+
 async def test_total_program_failure_logs_no_per_service_messages(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,
@@ -342,6 +361,32 @@ async def test_selected_type_without_broadcasts_is_not_missing(
     services = entry.runtime_data.services
     await services.async_refresh()
     assert services.last_update_success
+
+
+async def test_server_device_follows_mirakurun_version(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    mock_mirakurun(aioclient_mock)
+    await setup_integration(hass, config_entry)
+    server = device_registry.async_get_device_by_identifier(
+        (DOMAIN, ENTRY_ID), config_entry.entry_id
+    )
+    assert server is not None
+    assert server.sw_version == "4.0.0-beta.18"
+
+    aioclient_mock.clear_requests()
+    mock_mirakurun(
+        aioclient_mock, status={**load_fixture("status.json"), "version": "4.1.0"}
+    )
+    await config_entry.runtime_data.status.async_refresh()
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    server = device_registry.async_get(server.id)
+    assert server is not None
+    assert server.sw_version == "4.1.0"
 
 
 async def test_remove_device_while_not_loaded(

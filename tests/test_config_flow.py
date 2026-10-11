@@ -1,6 +1,7 @@
 """Tests for the Mirakurun config flow."""
 
 from collections.abc import Iterator
+import logging
 from unittest.mock import AsyncMock, patch
 
 from homeassistant.config_entries import SOURCE_USER
@@ -84,7 +85,9 @@ async def test_user_flow_cannot_connect_then_recovers(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,
     mock_setup_entry: AsyncMock,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    caplog.set_level(logging.DEBUG, logger="custom_components.mirakurun")
     mock_mirakurun(aioclient_mock, fail_status=True)
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": SOURCE_USER}
@@ -93,6 +96,7 @@ async def test_user_flow_cannot_connect_then_recovers(
         result["flow_id"], {CONF_URL: BASE_URL}
     )
     assert result["errors"] == {"base": "cannot_connect"}
+    assert f"Mirakurun check of {BASE_URL} failed: GET status failed" in caplog.text
 
     aioclient_mock.clear_requests()
     mock_mirakurun(aioclient_mock)

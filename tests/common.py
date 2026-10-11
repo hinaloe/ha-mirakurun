@@ -17,7 +17,6 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import (
 
 from custom_components.mirakurun.const import (
     CONF_BROADCAST_MAP,
-    CONF_BROADCASTS,
     CONF_CHANNEL_TYPES,
     CONF_PROGRAM_INTERVAL,
     CONF_SERVICE_INTERVAL,
@@ -119,7 +118,7 @@ LEGACY_OPTIONS: dict[str, Any] = {
         "3239123608": [],
         "3239123610": [],
     },
-    CONF_BROADCASTS: ["3273601024", "3239123608", "3239123610"],
+    "broadcasts": ["3273601024", "3239123608", "3239123610"],
     CONF_STATUS_INTERVAL: 45,
     CONF_PROGRAM_INTERVAL: 30,
 }
@@ -129,6 +128,7 @@ def mock_mirakurun(
     aioclient_mock: AiohttpClientMocker,
     *,
     base_url: str = BASE_URL,
+    status: Mapping[str, Any] | None = None,
     tuners: Sequence[Mapping[str, Any]] | None = None,
     services: Sequence[Mapping[str, Any]] | None = None,
     programs: Mapping[tuple[int, int], list[dict[str, Any]]] | None = None,
@@ -148,7 +148,11 @@ def mock_mirakurun(
             aioclient_mock.get(f"{api}/{path}", json=payload)
 
     register("version", load_fixture("version.json"), fail_version)
-    register("status", load_fixture("status.json"), fail_status)
+    register(
+        "status",
+        dict(status) if status is not None else load_fixture("status.json"),
+        fail_status,
+    )
     register(
         "tuners",
         list(tuners) if tuners is not None else load_fixture("tuners.json"),

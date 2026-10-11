@@ -74,13 +74,6 @@ def next_program(
     return next((item for item in schedule if item.start > now), None)
 
 
-def programs_between(
-    schedule: Sequence[ScheduledProgram], start: datetime, end: datetime
-) -> list[ScheduledProgram]:
-    """Return programs overlapping the given window."""
-    return [item for item in schedule if item.end > start and item.start < end]
-
-
 def next_transition(
     schedule: Sequence[ScheduledProgram], now: datetime
 ) -> datetime | None:

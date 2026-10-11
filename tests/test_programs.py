@@ -9,7 +9,6 @@ from custom_components.mirakurun.programs import (
     genre_key,
     next_program,
     next_transition,
-    programs_between,
 )
 
 from .common import NHK, PROGRAMS, at, make_program
@@ -70,13 +69,6 @@ def test_current_program_in_gap() -> None:
     )
     assert current_program(schedule, at(11, 45)) is None
     assert next_program(schedule, at(11, 45)).program.name == "後"
-
-
-def test_programs_between() -> None:
-    schedule = build_schedule(NHK_PROGRAMS)
-    names = [s.program.name for s in programs_between(schedule, at(12, 45), at(13, 30))]
-    assert names == ["天気", "ドキュメント"]
-    assert programs_between(schedule, at(14), at(15)) == []
 
 
 def test_next_transition() -> None:

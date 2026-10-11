@@ -1,12 +1,16 @@
 """Persistent storage of how services were grouped into broadcasts."""
 
 from collections.abc import Mapping
+import logging
+from typing import Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
 from .broadcast import Classification
 from .const import DOMAIN
+
+_LOGGER = logging.getLogger(__package__)
 
 STORAGE_VERSION = 1
 
@@ -20,8 +24,17 @@ class ClassificationStore:
         )
 
     async def async_load(self) -> Classification:
-        data = await self._store.async_load()
-        return {int(key): bool(value) for key, value in (data or {}).items()}
+        data: Any = await self._store.async_load()
+        if data is None:
+            return {}
+        if isinstance(data, dict) and all(
+            isinstance(key, str) and key.isdecimal() and isinstance(value, bool)
+            for key, value in data.items()
+        ):
+            return {int(key): value for key, value in data.items()}
+        # Losing the grouping only means measuring it again.
+        _LOGGER.warning("Ignoring invalid stored broadcast grouping: %r", data)
+        return {}
 
     async def async_save(self, classification: Mapping[int, bool]) -> None:
         await self._store.async_save(

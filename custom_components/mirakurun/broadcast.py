@@ -5,11 +5,14 @@ from collections import defaultdict
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
+import logging
 
 from .api import MirakurunClient, MirakurunError
 from .const import PROGRAM_FETCH_CONCURRENCY
 from .models import Program, Service
 from .programs import Schedule, ScheduledProgram, build_schedule, current_program
+
+_LOGGER = logging.getLogger(__package__)
 
 TV_SERVICE_TYPE = 1
 SHARED_RATIO_THRESHOLD = 0.5
@@ -111,14 +114,23 @@ async def discover(
 
     async def classify(group: list[Service]) -> tuple[list[Broadcast], bool]:
         main = group[0]
+        channel = f"{main.channel.type} {main.channel.channel}"
         programs: list[Program] | None
         async with semaphore:
             try:
                 programs = await client.get_programs(main.network_id, main.service_id)
-            except MirakurunError:
+            except MirakurunError as err:
+                _LOGGER.debug(
+                    "Not measuring channel %s: programs could not be fetched: %s",
+                    channel,
+                    err,
+                )
                 programs = None
         broadcasts = classify_channel(group, programs, now, previous)
-        return broadcasts, bool(_upcoming(programs, now))
+        measured = bool(_upcoming(programs, now))
+        if programs is not None and not measured:
+            _LOGGER.debug("Not measuring channel %s: no upcoming programs", channel)
+        return broadcasts, measured
 
     selected = [g for g in groups if g[0].channel.type in channel_types]
     results = await asyncio.gather(*(classify(group) for group in selected))

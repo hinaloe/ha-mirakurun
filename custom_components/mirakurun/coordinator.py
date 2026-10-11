@@ -222,14 +222,16 @@ class ProgramCoordinator(DataUpdateCoordinator[dict[int, BroadcastSchedule]]):
         for service, result in zip(targets, results, strict=True):
             if isinstance(result, MirakurunError):
                 failing.add(service.id)
+                previous = self._schedules.get(service.id)
                 if service.id not in self._failing:
                     _LOGGER.warning(
-                        "Failed to fetch programs for %s, keeping previous data: %s",
+                        "Failed to fetch programs for %s%s: %s",
                         service.name,
+                        "" if previous is None else ", keeping previous data",
                         result,
                     )
-                if service.id in self._schedules:
-                    schedules[service.id] = self._schedules[service.id]
+                if previous is not None:
+                    schedules[service.id] = previous
             elif isinstance(result, list):
                 schedules[service.id] = build_schedule(result)
                 if service.id in self._failing:
