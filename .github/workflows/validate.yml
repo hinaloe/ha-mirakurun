@@ -6,7 +6,8 @@ on:
   pull_request:
   schedule:
     # Catch new checks in hassfest and HACS without waiting for a commit.
-    - cron: "17 3 * * *"
+    # Off the hour, because GitHub delays or drops runs at busy times.
+    - cron: "17 3 * * 1"
   workflow_dispatch:
 
 jobs:
