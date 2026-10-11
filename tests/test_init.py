@@ -1,5 +1,6 @@
 """Tests for setting up the Mirakurun integration."""
 
+from datetime import timedelta
 import logging
 
 from homeassistant.config_entries import ConfigEntryState
@@ -59,6 +60,25 @@ async def test_setup_and_unload(
     assert config_entry.state is ConfigEntryState.NOT_LOADED
 
 
+async def test_setup_without_channel_types(
+    hass: HomeAssistant, mirakurun: AiohttpClientMocker
+) -> None:
+    entry = create_entry({**DEFAULT_OPTIONS, CONF_CHANNEL_TYPES: []})
+    await setup_integration(hass, entry)
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.runtime_data.services.data.broadcasts == ()
+    assert entry.runtime_data.programs.last_update_success
+    assert entry.runtime_data.programs.data == {}
+
+
+async def test_status_interval_option(
+    hass: HomeAssistant, mirakurun: AiohttpClientMocker
+) -> None:
+    entry = create_entry({**DEFAULT_OPTIONS, CONF_STATUS_INTERVAL: 60})
+    await setup_integration(hass, entry)
+    assert entry.runtime_data.status.update_interval == timedelta(seconds=60)
+
+
 async def test_setup_retries_when_services_fail(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,
@@ -100,12 +120,22 @@ async def test_program_refresh_keeps_previous_data_on_partial_failure(
     programs = config_entry.runtime_data.programs
     before = programs.data[3273601024].subs[0][1]
 
+    renamed = [dict(p) for p in PROGRAMS[NHK]]
+    renamed[1]["name"] = "気象情報"
     aioclient_mock.clear_requests()
-    mock_mirakurun(aioclient_mock, fail_programs={NHK2})
+    mock_mirakurun(
+        aioclient_mock, programs={**PROGRAMS, NHK: renamed}, fail_programs={NHK2}
+    )
     await programs.async_refresh()
 
     assert programs.last_update_success
-    assert programs.data[3273601024].subs[0][1] == before
+    nhk = programs.data[3273601024]
+    assert [s.program.name for s in nhk.main] == [
+        "ニュース",
+        "気象情報",
+        "ドキュメント",
+    ]
+    assert nhk.subs[0][1] == before
 
 
 async def test_program_refresh_fails_when_everything_fails(

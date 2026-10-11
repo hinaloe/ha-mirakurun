@@ -1,6 +1,7 @@
 """Tests for broadcast entities."""
 
 from datetime import datetime
+from typing import Any
 
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNKNOWN
@@ -47,10 +48,12 @@ def _program_fetches(aioclient_mock: AiohttpClientMocker) -> int:
 
 
 async def _setup_without_boundary_polling(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    programs: dict[tuple[int, int], list[dict[str, Any]]] | None = None,
 ) -> None:
     """Set up with a program interval that never fires on a boundary."""
-    mock_mirakurun(aioclient_mock)
+    mock_mirakurun(aioclient_mock, programs=programs)
     entry = create_entry({**DEFAULT_OPTIONS, CONF_PROGRAM_INTERVAL: 180})
     await setup_integration(hass, entry)
 
@@ -123,6 +126,45 @@ async def test_subchannel_split(
         )
         is None
     )
+
+
+async def test_subchannel_split_at_sub_only_boundary(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    frozen_now: FrozenDateTimeFactory,
+) -> None:
+    # NHK2 simulcasts the main 12:30 program for 15 minutes, then airs its own
+    # program from 12:45: a boundary that is not on the main schedule.
+    programs = {
+        **PROGRAMS,
+        NHK2: [
+            PROGRAMS[NHK2][0],
+            make_program(NHK2, 2, at(12, 30), 15, "天気", shared=(1024, 1025)),
+            make_program(NHK2, 21, at(12, 45), 15, "手話ニュース", genre=0),
+            PROGRAMS[NHK2][2],
+        ],
+    }
+    await _setup_without_boundary_polling(hass, aioclient_mock, programs)
+    fetches = _program_fetches(aioclient_mock)
+    split_id = entity_id(hass, "binary_sensor", f"{NHK_KEY}_subchannel_split")
+
+    await _move_to(hass, frozen_now, at(12, 30))
+    assert hass.states.get(split_id).state == STATE_OFF
+
+    await _move_to(hass, frozen_now, at(12, 45))
+    state = hass.states.get(split_id)
+    assert state.state == STATE_ON
+    assert state.attributes["subchannels"] == [
+        {
+            "service": "ＮＨＫ総合２・東京",
+            "program": "手話ニュース",
+            "end": at(13).isoformat(),
+        }
+    ]
+
+    await _move_to(hass, frozen_now, at(13))
+    assert hass.states.get(split_id).state == STATE_OFF
+    assert _program_fetches(aioclient_mock) == fetches
 
 
 async def test_calendar(

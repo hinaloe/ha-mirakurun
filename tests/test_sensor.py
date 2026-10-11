@@ -106,6 +106,7 @@ async def test_new_tuner_added_dynamically(
     aioclient_mock: AiohttpClientMocker,
     config_entry: MockConfigEntry,
     frozen_now: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     mock_mirakurun(aioclient_mock)
     await setup_integration(hass, config_entry)
@@ -117,6 +118,8 @@ async def test_new_tuner_added_dynamically(
     await _refresh_status(hass, frozen_now)
 
     assert _state(hass, f"{ENTRY_ID}_tuner_16_state") == "free"
+    # Existing tuners must not be added again.
+    assert "does not generate unique IDs" not in caplog.text
 
 
 async def test_removed_tuner_becomes_unavailable(
