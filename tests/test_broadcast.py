@@ -174,6 +174,16 @@ async def test_discover_filters_types(
     assert result.channel_types == frozenset({"GR", "CS"})
 
 
+async def test_discover_uses_given_services(
+    hass: HomeAssistant, mirakurun: AiohttpClientMocker
+) -> None:
+    client = MirakurunClient(async_get_clientsession(hass), BASE_URL)
+    result = await discover(client, NOW, ["GR"], {}, services=SERVICES[:3])
+    assert result.broadcasts == (Broadcast(NHK_SVC, (NHK2_SVC,)),)
+    assert result.channel_types == frozenset({"GR"})
+    assert not any(url.path == "/api/services" for _, url, _, _ in mirakurun.mock_calls)
+
+
 async def test_discover_without_types(
     hass: HomeAssistant, mirakurun: AiohttpClientMocker
 ) -> None:

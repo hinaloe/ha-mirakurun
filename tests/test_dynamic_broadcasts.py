@@ -19,10 +19,13 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import (
 )
 
 from custom_components.mirakurun.api import MirakurunClient
+from custom_components.mirakurun.broadcast import discover
 from custom_components.mirakurun.const import (
     CONF_CHANNEL_TYPES,
     DOMAIN,
     PROGRAM_FETCH_CONCURRENCY,
+    REGROUP_INTERVAL,
+    SERVICE_RECHECK_INTERVAL,
 )
 from custom_components.mirakurun.models import Program
 
@@ -74,6 +77,158 @@ def _program_fetches(aioclient_mock: AiohttpClientMocker, service_id: int) -> in
         for _method, url, _data, _headers in aioclient_mock.mock_calls
         if url.path == "/api/programs" and url.query.get("serviceId") == str(service_id)
     )
+
+
+def _calls(aioclient_mock: AiohttpClientMocker, path: str) -> int:
+    return sum(
+        1
+        for _method, url, _data, _headers in aioclient_mock.mock_calls
+        if url.path == path
+    )
+
+
+async def test_light_check_skips_regroup_when_unchanged(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+) -> None:
+    mock_mirakurun(aioclient_mock)
+    await setup_integration(hass, config_entry)
+    services = config_entry.runtime_data.services
+    before = services.data
+
+    aioclient_mock.clear_requests()
+    mock_mirakurun(aioclient_mock)
+    await _refresh_services(hass, config_entry)
+
+    assert services.last_update_success
+    assert _calls(aioclient_mock, "/api/services") == 1
+    assert _calls(aioclient_mock, "/api/programs") == 0
+    assert services.data is before
+
+
+async def test_changed_service_list_regroups(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+) -> None:
+    mock_mirakurun(aioclient_mock)
+    await setup_integration(hass, config_entry)
+    services = config_entry.runtime_data.services
+
+    aioclient_mock.clear_requests()
+    mock_mirakurun(
+        aioclient_mock, services=_services(add=[FUJI_SERVICE]), programs=FUJI_PROGRAMS
+    )
+    await services.async_refresh()
+
+    # The service list fetched for the check is reused for the regroup.
+    assert _calls(aioclient_mock, "/api/services") == 1
+    assert _program_fetches(aioclient_mock, 1056) == 1
+    assert 3274101056 in {b.main.id for b in services.data.broadcasts}
+
+
+async def test_unchanged_service_list_regroups_daily(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    frozen_now: FrozenDateTimeFactory,
+) -> None:
+    mock_mirakurun(aioclient_mock)
+    await setup_integration(hass, config_entry)
+    services = config_entry.runtime_data.services
+
+    with patch(
+        "custom_components.mirakurun.coordinator.discover", wraps=discover
+    ) as spy:
+        frozen_now.tick(REGROUP_INTERVAL - timedelta(minutes=1))
+        aioclient_mock.clear_requests()
+        mock_mirakurun(aioclient_mock)
+        await services.async_refresh()
+        assert _calls(aioclient_mock, "/api/programs") == 0
+        assert spy.call_count == 0
+
+        frozen_now.tick(timedelta(minutes=1))
+        aioclient_mock.clear_requests()
+        mock_mirakurun(aioclient_mock)
+        await services.async_refresh()
+        assert spy.call_count == 1
+    assert services.last_update_success
+    assert _program_fetches(aioclient_mock, 1024) >= 1
+
+
+async def test_service_of_unselected_type_does_not_regroup(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+) -> None:
+    mock_mirakurun(aioclient_mock)
+    await setup_integration(hass, config_entry)
+    services = config_entry.runtime_data.services
+    before = services.data
+    cs_service = {
+        **FUJI_SERVICE,
+        "id": 700300,
+        "serviceId": 300,
+        "networkId": 7,
+        "channel": {"type": "CS", "channel": "CS10"},
+    }
+
+    aioclient_mock.clear_requests()
+    mock_mirakurun(aioclient_mock, services=_services(add=[cs_service]))
+    await _refresh_services(hass, config_entry)
+
+    assert services.last_update_success
+    assert _calls(aioclient_mock, "/api/programs") == 0
+    assert services.data == before
+
+
+async def test_light_check_refreshes_channel_types(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+) -> None:
+    mock_mirakurun(aioclient_mock)
+    await setup_integration(hass, config_entry)
+    services = config_entry.runtime_data.services
+    before = services.data
+    bs_service = {
+        **FUJI_SERVICE,
+        "id": 400101,
+        "serviceId": 101,
+        "networkId": 4,
+        "channel": {"type": "BS", "channel": "BS15_0"},
+    }
+
+    aioclient_mock.clear_requests()
+    mock_mirakurun(aioclient_mock, services=_services(add=[bs_service]))
+    await services.async_refresh()
+
+    assert _calls(aioclient_mock, "/api/programs") == 0
+    assert services.data.broadcasts is before.broadcasts
+    assert services.data.channel_types == frozenset({"GR", "CS", "BS"})
+
+
+async def test_guards_fire_on_light_check(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+) -> None:
+    mock_mirakurun(aioclient_mock)
+    await setup_integration(hass, config_entry)
+    services = config_entry.runtime_data.services
+    before = services.data
+
+    for payload in ([], [s for s in _services() if s["channel"]["type"] == "CS"]):
+        services.update_interval = timedelta(hours=1)
+        aioclient_mock.clear_requests()
+        mock_mirakurun(aioclient_mock, services=payload)
+        await services.async_refresh()
+
+        assert not services.last_update_success
+        assert _calls(aioclient_mock, "/api/programs") == 0
+        assert services.data is before
+        assert services.update_interval == SERVICE_RECHECK_INTERVAL
 
 
 async def test_new_broadcast_added_without_reload(
@@ -240,8 +395,13 @@ async def test_split_sensor_follows_regrouping(
     await setup_integration(hass, config_entry)
     split_entity = entity_id(hass, "binary_sensor", NHK_SPLIT_ID)
 
+    # A changed service list triggers the regroup.
     aioclient_mock.clear_requests()
-    mock_mirakurun(aioclient_mock, programs=NHK_ALONE)
+    mock_mirakurun(
+        aioclient_mock,
+        services=_services(add=[FUJI_SERVICE]),
+        programs={**NHK_ALONE, FUJI: FUJI_PROGRAMS[FUJI]},
+    )
     await _refresh_services(hass, config_entry)
 
     assert (

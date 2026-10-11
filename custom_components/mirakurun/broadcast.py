@@ -108,9 +108,15 @@ async def discover(
     now: datetime,
     channel_types: Collection[str],
     previous: Mapping[int, bool],
+    *,
+    services: Sequence[Service] | None = None,
 ) -> Discovery:
-    """Fetch services and classify the physical channels of the given types."""
-    services = await client.get_services()
+    """Classify the physical channels of the given types.
+
+    ``services`` is the server's service list; it is fetched when not given.
+    """
+    if services is None:
+        services = await client.get_services()
     groups = group_by_channel(services)
     semaphore = asyncio.Semaphore(PROGRAM_FETCH_CONCURRENCY)
 
@@ -147,7 +153,23 @@ async def discover(
     return Discovery(
         broadcasts=tuple(b for broadcasts, _ in results for b in broadcasts),
         classification=classification,
-        channel_types=frozenset(g[0].channel.type for g in groups),
+        channel_types=tv_channel_types(services),
+    )
+
+
+def tv_channel_types(services: Sequence[Service]) -> frozenset[str]:
+    """Return every channel type that has TV services."""
+    return frozenset(s.channel.type for s in services if s.type == TV_SERVICE_TYPE)
+
+
+def lineup_key(
+    services: Sequence[Service], channel_types: Collection[str]
+) -> frozenset[tuple[int, str, str]]:
+    """Return a key that changes when TV services of the given types change."""
+    return frozenset(
+        (s.id, s.channel.type, s.channel.channel)
+        for s in services
+        if s.type == TV_SERVICE_TYPE and s.channel.type in channel_types
     )
 
 

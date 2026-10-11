@@ -1,8 +1,8 @@
 """Data update coordinators for Mirakurun."""
 
 import asyncio
-from dataclasses import dataclass
-from datetime import timedelta
+from dataclasses import dataclass, replace
+from datetime import datetime, timedelta
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -12,7 +12,14 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from .api import MirakurunClient, MirakurunError
-from .broadcast import Broadcast, Classification, Discovery, discover
+from .broadcast import (
+    Broadcast,
+    Classification,
+    Discovery,
+    discover,
+    lineup_key,
+    tv_channel_types,
+)
 from .const import (
     CONF_CHANNEL_TYPES,
     CONF_PROGRAM_INTERVAL,
@@ -24,6 +31,7 @@ from .const import (
     DEFAULT_STATUS_INTERVAL,
     DOMAIN,
     PROGRAM_FETCH_CONCURRENCY,
+    REGROUP_INTERVAL,
     SERVICE_RECHECK_INTERVAL,
     VERSION_INTERVAL,
     VERSION_RETRY_INTERVAL,
@@ -93,7 +101,12 @@ class StatusCoordinator(DataUpdateCoordinator[StatusData]):
 
 
 class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
-    """Refreshes the broadcast list and regroups subchannels."""
+    """Checks the broadcast list and regroups subchannels when needed.
+
+    Every refresh fetches the service list; subchannels are regrouped (one
+    program fetch per physical channel) only when the TV services of the
+    selected types changed or ``REGROUP_INTERVAL`` passed since the last regroup.
+    """
 
     config_entry: MirakurunConfigEntry
 
@@ -118,6 +131,10 @@ class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
         self._store = store
         self._classification: Classification | None = None
         self._regular_interval = self.update_interval
+        # The lineup and time of the last regroup, to skip regroups that would
+        # find nothing new.
+        self._lineup_key: frozenset[tuple[int, str, str]] = frozenset()
+        self._regrouped_at: datetime | None = None
         # Broadcasts known before the first refresh (their devices), so a
         # broadcast missing at setup also triggers an early recheck.
         self.known_broadcast_ids: set[int] = set()
@@ -129,12 +146,11 @@ class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
             CONF_CHANNEL_TYPES, list(DEFAULT_CHANNEL_TYPES)
         )
         try:
-            discovery = await discover(
-                self.client, dt_util.utcnow(), channel_types, self._classification
-            )
+            services = await self.client.get_services()
         except MirakurunError as err:
             raise _update_failed(err) from err
-        if not discovery.channel_types:
+        server_types = tv_channel_types(services)
+        if not server_types:
             # An empty service list (e.g. during a channel scan) must not wipe
             # every broadcast device. Mirakurun is probably refilling its
             # services, so look again soon.
@@ -145,13 +161,32 @@ class ServiceCoordinator(DataUpdateCoordinator[Discovery]):
             # right after Mirakurun restarts with a changed channels.yml).
             # Types that never had broadcasts are not missing.
             previous = {b.main.channel.type for b in self.data.broadcasts}
-            if missing := (previous & set(channel_types)) - discovery.channel_types:
+            if missing := (previous & set(channel_types)) - server_types:
                 self.update_interval = SERVICE_RECHECK_INTERVAL
                 raise UpdateFailed(
                     translation_domain=DOMAIN,
                     translation_key="selected_types_missing",
                     translation_placeholders={"types": ", ".join(sorted(missing))},
                 )
+        now = dt_util.utcnow()
+        key = lineup_key(services, channel_types)
+        if (
+            self.data is not None
+            and key == self._lineup_key
+            and self._regrouped_at is not None
+            and now - self._regrouped_at < REGROUP_INTERVAL
+        ):
+            # Light check: the lineup is unchanged, so the previous grouping
+            # stands without measuring every channel's programs again.
+            self.update_interval = self._regular_interval
+            if self.data.channel_types == server_types:
+                return self.data
+            return replace(self.data, channel_types=server_types)
+        discovery = await discover(
+            self.client, now, channel_types, self._classification, services=services
+        )
+        self._lineup_key = key
+        self._regrouped_at = now
         merged = {**self._classification, **discovery.classification}
         if merged != self._classification:
             self._classification = merged

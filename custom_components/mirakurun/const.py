@@ -30,6 +30,9 @@ VERSION_RETRY_INTERVAL: Final = timedelta(minutes=30)
 # Look again soon when broadcasts vanish: Mirakurun refills its services one
 # channel at a time after restarting with a changed channels.yml.
 SERVICE_RECHECK_INTERVAL: Final = timedelta(minutes=15)
+# Regroup subchannels at least this often even if the service list is
+# unchanged; Mirakurun itself updates its services once a day.
+REGROUP_INTERVAL: Final = timedelta(hours=24)
 
 RELEASE_URL: Final = "https://github.com/Chinachu/Mirakurun/releases"
 
