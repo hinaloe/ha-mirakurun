@@ -55,7 +55,8 @@ REGROUP_INTERVAL: Final = timedelta(hours=24)
 # channel that stays without programs then waits for the daily regroup.
 UNMEASURED_RETRY_WINDOW: Final = timedelta(hours=2)
 
-RELEASE_URL: Final = "https://github.com/Chinachu/Mirakurun/releases"
+# Mirakurun stopped publishing GitHub releases (only tags), so link the changelog.
+RELEASE_URL: Final = "https://github.com/Chinachu/Mirakurun/blob/master/CHANGELOG.md"
 
 
 def default_options() -> dict[str, Any]:
