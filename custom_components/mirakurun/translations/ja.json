@@ -29,21 +29,21 @@
         "title": "Mirakurun のオプション",
         "data": {
           "channel_types": "放送の種別",
-          "status_interval": "チューナーと状態の取得間隔",
+          "status_interval": "チューナーとサーバー状態の取得間隔",
           "program_interval": "番組表の取得間隔",
           "service_interval": "放送一覧の確認間隔"
         },
         "data_description": {
-          "channel_types": "この種別の放送に番組情報のエンティティを作ります。Mirakurun で増えた放送や消えた放送には自動で追従します。要らない放送はデバイスを無効化して隠してください。",
+          "channel_types": "選択した種別の放送ごとに、番組情報のエンティティを作成します。Mirakurun 側で放送が追加・削除されたときは自動で反映されます。不要な放送は、そのデバイスを無効化すると非表示にできます。",
           "status_interval": "チューナーの使用状況とサーバーの状態を取得する間隔です。",
           "program_interval": "番組表を取得し直す間隔です。",
-          "service_interval": "Mirakurun のサービス一覧を確認し、増えた放送や消えた放送を見つける間隔です。サブチャンネルのまとめ方は、一覧が変わったときと、前回の判定から 24 時間以上たった最初の確認で判定し直します。"
+          "service_interval": "Mirakurun のサービス一覧を確認し、放送の追加や削除を検出する間隔です。サブチャンネルのグループ分けは、一覧が変わったときと、前回の判定から 24 時間以上経過した後の最初の確認時に見直します。"
         }
       }
     },
     "abort": {
       "cannot_connect": "Mirakurun に接続できませんでした。",
-      "no_services": "Mirakurun からテレビのサービスが返されませんでした。チャンネルスキャンが終わってから開き直してください。"
+      "no_services": "Mirakurun からテレビのサービスが返されませんでした。チャンネルスキャンの完了後に、もう一度開いてください。"
     }
   },
   "selector": {
@@ -65,12 +65,12 @@
       "tuner_respawns": {"name": "チューナーの再起動回数"},
       "uncaught_exceptions": {"name": "未捕捉の例外"},
       "unhandled_rejections": {"name": "未処理の Promise 拒否"},
-      "buffer_overflows": {"name": "バッファーあふれ"},
+      "buffer_overflows": {"name": "バッファーオーバーフロー"},
       "decoder_respawns": {"name": "デコーダーの再起動回数"},
       "tuner_state": {
         "name": "状態",
         "state": {
-          "fault": "故障",
+          "fault": "異常",
           "disabled": "無効",
           "in_use": "使用中",
           "free": "空き"
@@ -136,10 +136,10 @@
       }
     },
     "binary_sensor": {
-      "epg_gathering": {"name": "番組表取得中"},
-      "tuner_fault": {"name": "故障"},
+      "epg_gathering": {"name": "番組表を取得中"},
+      "tuner_fault": {"name": "異常"},
       "subchannel_split": {
-        "name": "サブチャンネル別番組中",
+        "name": "サブチャンネルで別番組を放送中",
         "state_attributes": {"subchannels": {"name": "サブチャンネル"}}
       }
     },
@@ -152,7 +152,7 @@
     "update_failed": {"message": "Mirakurun との通信でエラーが発生しました: {error}"},
     "no_services": {"message": "Mirakurun からテレビのサービスが返されませんでした。"},
     "selected_types_missing": {
-      "message": "選んだ種別のサービスが Mirakurun にありません: {types}"
+      "message": "選択した種別のサービスが Mirakurun にありません: {types}"
     }
   }
 }

@@ -5,18 +5,18 @@
         "title": "Connect to Mirakurun",
         "description": "Enter the URL of your Mirakurun server.",
         "data": {"url": "URL"},
-        "data_description": {"url": "For example http://192.168.1.10:40772"}
+        "data_description": {"url": "For example: http://192.168.1.10:40772"}
       },
       "reconfigure": {
         "title": "Change the Mirakurun URL",
         "data": {"url": "URL"},
-        "data_description": {"url": "For example http://192.168.1.10:40772"}
+        "data_description": {"url": "For example: http://192.168.1.10:40772"}
       }
     },
     "error": {
       "invalid_url": "Enter a URL starting with http:// or https://.",
       "cannot_connect": "Could not connect to Mirakurun.",
-      "unknown": "Unexpected error."
+      "unknown": "An unexpected error occurred."
     },
     "abort": {
       "already_configured": "This Mirakurun server is already configured.",
@@ -29,15 +29,15 @@
         "title": "Mirakurun options",
         "data": {
           "channel_types": "Broadcast types",
-          "status_interval": "Tuner and status polling interval",
+          "status_interval": "Tuner and server status polling interval",
           "program_interval": "Program guide polling interval",
           "service_interval": "Broadcast list check interval"
         },
         "data_description": {
-          "channel_types": "Broadcasts of these types get program guide entities. Broadcasts added to or removed from Mirakurun are followed automatically; disable a broadcast's device to hide it.",
+          "channel_types": "Program information entities are created for each broadcast of the selected types. Broadcasts added to or removed from Mirakurun are picked up automatically. To hide a broadcast you don't need, disable its device.",
           "status_interval": "How often to poll tuner usage and server status.",
           "program_interval": "How often to refresh the program guide.",
-          "service_interval": "How often to check Mirakurun's service list for added or removed broadcasts. Subchannels are regrouped when the list changes, and on the first check at least 24 hours after the last regroup."
+          "service_interval": "How often to check Mirakurun's service list for added or removed broadcasts. Subchannel grouping is re-evaluated whenever the list changes, and on the first check made 24 hours or more after the previous evaluation."
         }
       }
     },
@@ -64,7 +64,7 @@
       "stored_events": {"name": "Stored programs"},
       "tuner_respawns": {"name": "Tuner respawns"},
       "uncaught_exceptions": {"name": "Uncaught exceptions"},
-      "unhandled_rejections": {"name": "Unhandled rejections"},
+      "unhandled_rejections": {"name": "Unhandled promise rejections"},
       "buffer_overflows": {"name": "Buffer overflows"},
       "decoder_respawns": {"name": "Decoder respawns"},
       "tuner_state": {
@@ -91,16 +91,16 @@
           "genre": {
             "name": "Genre",
             "state": {
-              "news": "News",
+              "news": "News and reports",
               "sports": "Sports",
-              "information": "Information",
+              "information": "Information and talk shows",
               "drama": "Drama",
               "music": "Music",
               "variety": "Variety",
               "movie": "Movie",
-              "anime": "Anime",
-              "documentary": "Documentary",
-              "theater": "Theater",
+              "anime": "Anime and tokusatsu",
+              "documentary": "Documentary and culture",
+              "theater": "Theater and performances",
               "hobby": "Hobby and education",
               "welfare": "Welfare",
               "extension": "Extension",
@@ -116,16 +116,16 @@
           "genre": {
             "name": "Genre",
             "state": {
-              "news": "News",
+              "news": "News and reports",
               "sports": "Sports",
-              "information": "Information",
+              "information": "Information and talk shows",
               "drama": "Drama",
               "music": "Music",
               "variety": "Variety",
               "movie": "Movie",
-              "anime": "Anime",
-              "documentary": "Documentary",
-              "theater": "Theater",
+              "anime": "Anime and tokusatsu",
+              "documentary": "Documentary and culture",
+              "theater": "Theater and performances",
               "hobby": "Hobby and education",
               "welfare": "Welfare",
               "extension": "Extension",
