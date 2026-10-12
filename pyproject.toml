@@ -1,6 +1,6 @@
 [project]
 name = "ha-mirakurun"
-version = "0.1.1"
+version = "0.1.2"
 description = "Mirakurun integration for Home Assistant"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
