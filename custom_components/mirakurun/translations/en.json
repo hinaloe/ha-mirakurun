@@ -60,12 +60,12 @@
     "sensor": {
       "tuners_in_use": {"name": "Tuners in use"},
       "tuners_free": {"name": "Free tuners"},
-      "streams": {"name": "Tuner streams"},
+      "ts_filter_streams": {"name": "TSFilter streams"},
+      "decoder_streams": {"name": "Decoder streams"},
       "stored_events": {"name": "Stored programs"},
       "tuner_respawns": {"name": "Tuner respawns"},
       "uncaught_exceptions": {"name": "Uncaught exceptions"},
       "unhandled_rejections": {"name": "Unhandled promise rejections"},
-      "buffer_overflows": {"name": "Buffer overflows"},
       "decoder_respawns": {"name": "Decoder respawns"},
       "tuner_state": {
         "name": "State",

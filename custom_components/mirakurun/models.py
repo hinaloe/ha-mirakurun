@@ -44,7 +44,8 @@ class Status:
     """Server status."""
 
     version: str
-    tuner_device_streams: int
+    ts_filter_streams: int
+    decoder_streams: int
     stored_events: int | None
     gathering_networks: tuple[int, ...]
     error_counts: Mapping[str, int]
@@ -57,7 +58,8 @@ class Status:
         errors = data.get("errorCount") or {}
         return cls(
             version=str(data["version"]),
-            tuner_device_streams=int(streams.get("tunerDevice", 0)),
+            ts_filter_streams=int(streams.get("tsFilter", 0)),
+            decoder_streams=int(streams.get("decoder", 0)),
             stored_events=int(stored) if stored is not None else None,
             gathering_networks=tuple(
                 int(n) for n in epg.get("gatheringNetworks") or ()

@@ -19,6 +19,9 @@ from dataclasses import dataclass
 from typing import Any
 
 from homeassistant.components.sensor import (
+    DOMAIN as SENSOR_DOMAIN,
+)
+from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
@@ -26,10 +29,12 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from .broadcast import Broadcast
+from .const import DOMAIN
 from .coordinator import (
     MirakurunConfigEntry,
     ProgramCoordinator,
@@ -87,11 +92,19 @@ SERVER_SENSORS: tuple[MirakurunServerSensorDescription, ...] = (
         value_fn=lambda data: sum(t.is_free for t in data.tuners),
     ),
     MirakurunServerSensorDescription(
-        key="streams",
-        translation_key="streams",
+        key="ts_filter_streams",
+        translation_key="ts_filter_streams",
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda data: data.status.tuner_device_streams,
+        value_fn=lambda data: data.status.ts_filter_streams,
+    ),
+    MirakurunServerSensorDescription(
+        key="decoder_streams",
+        translation_key="decoder_streams",
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda data: data.status.decoder_streams,
     ),
     MirakurunServerSensorDescription(
         key="stored_events",
@@ -125,14 +138,6 @@ SERVER_SENSORS: tuple[MirakurunServerSensorDescription, ...] = (
         value_fn=_error_count("unhandledRejection"),
     ),
     MirakurunServerSensorDescription(
-        key="buffer_overflows",
-        translation_key="buffer_overflows",
-        state_class=SensorStateClass.TOTAL_INCREASING,
-        entity_category=EntityCategory.DIAGNOSTIC,
-        entity_registry_enabled_default=False,
-        value_fn=_error_count("bufferOverflow"),
-    ),
-    MirakurunServerSensorDescription(
         key="decoder_respawns",
         translation_key="decoder_respawns",
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -141,6 +146,12 @@ SERVER_SENSORS: tuple[MirakurunServerSensorDescription, ...] = (
         value_fn=_error_count("decoderRespawn"),
     ),
 )
+
+# Server sensors that older versions created. "streams" read
+# streamCount.tunerDevice, which Mirakurun computes the same way as tuners in
+# use, and "buffer_overflows" read errorCount.bufferOverflow, which Mirakurun
+# never increments.
+REMOVED_SERVER_SENSORS = ("streams", "buffer_overflows")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -181,6 +192,12 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Mirakurun sensors."""
+    registry = er.async_get(hass)
+    for key in REMOVED_SERVER_SENSORS:
+        if entity_id := registry.async_get_entity_id(
+            SENSOR_DOMAIN, DOMAIN, f"{entry.entry_id}_server_{key}"
+        ):
+            registry.async_remove(entity_id)
     status = entry.runtime_data.status
     async_add_entities(
         MirakurunServerSensor(status, entry, description)

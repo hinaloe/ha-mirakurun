@@ -4,7 +4,7 @@
   "process": {"arch": "x64", "platform": "linux", "pid": 1},
   "epg": {"gatheringNetworks": [4, 7], "storedEvents": 26849},
   "rpcCount": 1,
-  "streamCount": {"tunerDevice": 2, "tsFilter": 2, "decoder": 0},
+  "streamCount": {"tunerDevice": 2, "tsFilter": 3, "decoder": 1},
   "errorCount": {
     "uncaughtException": 0,
     "unhandledRejection": 0,

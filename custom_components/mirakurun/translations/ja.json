@@ -60,12 +60,12 @@
     "sensor": {
       "tuners_in_use": {"name": "使用中のチューナー"},
       "tuners_free": {"name": "空きチューナー"},
-      "streams": {"name": "チューナーのストリーム数"},
+      "ts_filter_streams": {"name": "TSFilter のストリーム数"},
+      "decoder_streams": {"name": "デコーダーのストリーム数"},
       "stored_events": {"name": "保持番組数"},
       "tuner_respawns": {"name": "チューナーの再起動回数"},
       "uncaught_exceptions": {"name": "未捕捉の例外"},
       "unhandled_rejections": {"name": "未処理の Promise 拒否"},
-      "buffer_overflows": {"name": "バッファーオーバーフロー"},
       "decoder_respawns": {"name": "デコーダーの再起動回数"},
       "tuner_state": {
         "name": "状態",
