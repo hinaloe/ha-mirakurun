@@ -3,12 +3,12 @@
     "sensor": {
       "tuners_in_use": {"default": "mdi:television-classic"},
       "tuners_free": {"default": "mdi:television-classic-off"},
-      "streams": {"default": "mdi:transit-connection-variant"},
+      "ts_filter_streams": {"default": "mdi:transit-connection-variant"},
+      "decoder_streams": {"default": "mdi:transit-connection-variant"},
       "stored_events": {"default": "mdi:database"},
       "tuner_respawns": {"default": "mdi:restart"},
       "uncaught_exceptions": {"default": "mdi:alert-circle-outline"},
       "unhandled_rejections": {"default": "mdi:alert-circle-outline"},
-      "buffer_overflows": {"default": "mdi:tray-full"},
       "decoder_respawns": {"default": "mdi:restart"},
       "tuner_state": {
         "default": "mdi:tune-vertical",

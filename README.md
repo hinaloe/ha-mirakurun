@@ -6,7 +6,7 @@ It does not record or schedule recordings; use it alongside EPGStation for that.
 
 ## Features
 
-- **Server**: tuners in use, free tuners, tuner streams, tuner respawns, stored programs, error counters, whether the program guide is being gathered, and a Mirakurun update entity. The stored programs sensor and four error counters (uncaught exceptions, unhandled rejections, buffer overflows, decoder respawns) are disabled by default.
+- **Server**: tuners in use, free tuners, TSFilter streams, decoder streams, tuner respawns, stored programs, error counters, whether the program guide is being gathered, and a Mirakurun update entity. The decoder streams and stored programs sensors and three error counters (uncaught exceptions, unhandled rejections, decoder respawns) are disabled by default.
 - **Tuners**: one device per tuner with its state (`free`, `in_use`, `disabled`, `fault`), the channel being received, the highest priority user, and a fault sensor. Tuners added later appear without restarting.
 - **Broadcasts**: one device per broadcast of the selected types, with the current and next program and a calendar of the program guide. Broadcasts with subchannels also get a sensor that turns on while a subchannel airs a different program. Broadcasts added to or removed from Mirakurun are followed automatically; disable a broadcast's device to hide it.
 

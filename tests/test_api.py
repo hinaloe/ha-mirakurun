@@ -75,7 +75,8 @@ async def test_get_version(hass: HomeAssistant, mirakurun: AiohttpClientMocker) 
 async def test_get_status(hass: HomeAssistant, mirakurun: AiohttpClientMocker) -> None:
     status = await _client(hass).get_status()
     assert status.version == "4.0.0-beta.18"
-    assert status.tuner_device_streams == 2
+    assert status.ts_filter_streams == 3
+    assert status.decoder_streams == 1
     assert status.stored_events == 26849
     assert status.gathering_networks == (4, 7)
     assert status.error_counts["tunerDeviceRespawn"] == 1747

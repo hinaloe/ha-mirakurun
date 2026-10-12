@@ -61,7 +61,7 @@ async def test_server_sensors(
     await setup_integration(hass, config_entry)
     assert _state(hass, f"{ENTRY_ID}_server_tuners_in_use") == "1"
     assert _state(hass, f"{ENTRY_ID}_server_tuners_free") == "1"
-    assert _state(hass, f"{ENTRY_ID}_server_streams") == "2"
+    assert _state(hass, f"{ENTRY_ID}_server_ts_filter_streams") == "3"
     assert _state(hass, f"{ENTRY_ID}_server_tuner_respawns") == "1747"
 
 
@@ -76,7 +76,7 @@ async def test_diagnostic_sensors_disabled_by_default(
         "stored_events",
         "uncaught_exceptions",
         "unhandled_rejections",
-        "buffer_overflows",
+        "decoder_streams",
         "decoder_respawns",
     ):
         entry = entity_registry.async_get(
@@ -84,6 +84,33 @@ async def test_diagnostic_sensors_disabled_by_default(
         )
         assert entry is not None
         assert entry.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+
+
+async def test_removed_server_sensors_are_cleaned_up(
+    hass: HomeAssistant,
+    mirakurun: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    config_entry.add_to_hass(hass)
+    for key in ("streams", "buffer_overflows"):
+        entity_registry.async_get_or_create(
+            "sensor",
+            DOMAIN,
+            f"{ENTRY_ID}_server_{key}",
+            config_entry=config_entry,
+        )
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    for key in ("streams", "buffer_overflows"):
+        assert (
+            entity_registry.async_get_entity_id(
+                "sensor", DOMAIN, f"{ENTRY_ID}_server_{key}"
+            )
+            is None
+        )
+    assert _state(hass, f"{ENTRY_ID}_server_tuners_in_use") == "1"
 
 
 async def test_tuner_sensors(
